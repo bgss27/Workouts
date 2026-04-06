@@ -1,6 +1,7 @@
 package com.fittrack.app.ui.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
@@ -9,6 +10,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
     data object Home : Screen("home", "Home", Icons.Default.Home)
+    data object MyPlan : Screen("my_plan", "My Plan", Icons.Default.EventNote)
     data object ActiveWorkout : Screen("active_workout?routineId={routineId}", "Workout", Icons.Default.FitnessCenter) {
         fun createRoute(routineId: Long? = null): String {
             return if (routineId != null) "active_workout?routineId=$routineId"
@@ -27,6 +29,6 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     data object Suggestions : Screen("suggestions", "Tips")
 
     companion object {
-        val bottomNavItems = listOf(Home, ActiveWorkout, Progress, Routines)
+        val bottomNavItems = listOf(Home, MyPlan, Progress, Routines)
     }
 }

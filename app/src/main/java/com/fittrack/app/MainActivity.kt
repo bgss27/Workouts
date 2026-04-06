@@ -43,10 +43,7 @@ class MainActivity : ComponentActivity() {
                                         selected = currentRoute == screen.route,
                                         onClick = {
                                             if (currentRoute != screen.route) {
-                                                navController.navigate(
-                                                    if (screen is Screen.ActiveWorkout) screen.createRoute()
-                                                    else screen.route
-                                                ) {
+                                                navController.navigate(screen.route) {
                                                     popUpTo(Screen.Home.route) { saveState = true }
                                                     launchSingleTop = true
                                                     restoreState = true

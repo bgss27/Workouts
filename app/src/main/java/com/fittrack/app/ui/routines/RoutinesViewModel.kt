@@ -7,13 +7,15 @@ import com.fittrack.app.data.entity.Exercise
 import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.data.relation.RoutineWithExercises
 import com.fittrack.app.data.repository.ExerciseRepository
+import com.fittrack.app.data.repository.UserPlanRepository
 import com.fittrack.app.domain.analysis.RoutineSuggestionEngine
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class RoutinesViewModel(
     private val routineSuggestionEngine: RoutineSuggestionEngine,
-    private val exerciseRepository: ExerciseRepository
+    private val exerciseRepository: ExerciseRepository,
+    private val userPlanRepository: UserPlanRepository
 ) : ViewModel() {
 
     private val _selectedMuscleGroup = MutableStateFlow<MuscleGroup?>(null)
@@ -33,6 +35,9 @@ class RoutinesViewModel(
 
     private val _exerciseMap = MutableStateFlow<Map<Long, Exercise>>(emptyMap())
     val exerciseMap: StateFlow<Map<Long, Exercise>> = _exerciseMap
+
+    private val _addedToast = MutableSharedFlow<String>()
+    val addedToast: SharedFlow<String> = _addedToast
 
     init {
         viewModelScope.launch {
@@ -63,7 +68,6 @@ class RoutinesViewModel(
 
             val routines = when {
                 days != null && group != null -> {
-                    // Filter by both days and muscle group
                     routineSuggestionEngine.getRoutinesByDaysPerWeek(days).first()
                         .filter { it.routine.targetMuscleGroups.contains(group.name) }
                 }
@@ -89,13 +93,31 @@ class RoutinesViewModel(
         }
     }
 
+    fun addProgramToPlan(programName: String) {
+        viewModelScope.launch {
+            // Get all routines in this program
+            val routines = routineSuggestionEngine.getRoutinesByProgram(programName).first()
+            val routineIds = routines.sortedBy { it.routine.dayOrder }.map { it.routine.id }
+            userPlanRepository.addProgramToPlan(programName, routineIds)
+            _addedToast.emit("$programName added to My Plan")
+        }
+    }
+
+    fun addStandaloneRoutineToPlan(routineId: Long, routineName: String) {
+        viewModelScope.launch {
+            userPlanRepository.addStandaloneRoutineToPlan(routineId)
+            _addedToast.emit("$routineName added to My Plan")
+        }
+    }
+
     class Factory(
         private val routineSuggestionEngine: RoutineSuggestionEngine,
-        private val exerciseRepository: ExerciseRepository
+        private val exerciseRepository: ExerciseRepository,
+        private val userPlanRepository: UserPlanRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return RoutinesViewModel(routineSuggestionEngine, exerciseRepository) as T
+            return RoutinesViewModel(routineSuggestionEngine, exerciseRepository, userPlanRepository) as T
         }
     }
 }

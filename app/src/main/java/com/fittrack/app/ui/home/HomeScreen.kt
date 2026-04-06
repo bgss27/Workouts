@@ -3,7 +3,9 @@ package com.fittrack.app.ui.home
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -26,13 +28,17 @@ fun HomeScreen(
     onViewHistory: () -> Unit,
     onViewProgress: () -> Unit,
     onViewSuggestions: () -> Unit,
-    onViewWorkoutDetail: (Long) -> Unit
+    onViewWorkoutDetail: (Long) -> Unit,
+    onViewMyPlan: () -> Unit,
+    onStartRoutine: (Long) -> Unit
 ) {
     val viewModel: HomeViewModel = viewModel(
         factory = HomeViewModel.Factory(
             appModule.workoutRepository,
             appModule.exerciseRepository,
-            appModule.progressAnalyzer
+            appModule.progressAnalyzer,
+            appModule.userPlanRepository,
+            appModule.routineRepository
         )
     )
 
@@ -40,6 +46,9 @@ fun HomeScreen(
     val workoutCount by viewModel.completedWorkoutCount.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
     val exercises by viewModel.exercises.collectAsState()
+    val hasPlan by viewModel.hasPlan.collectAsState()
+    val planDays by viewModel.planDays.collectAsState()
+    val planProgramName by viewModel.planProgramName.collectAsState()
 
     Scaffold(
         topBar = {
@@ -56,7 +65,7 @@ fun HomeScreen(
             ExtendedFloatingActionButton(
                 onClick = onStartWorkout,
                 icon = { Icon(Icons.Default.FitnessCenter, contentDescription = null) },
-                text = { Text("Start Workout") }
+                text = { Text("Quick Workout") }
             )
         }
     ) { padding ->
@@ -67,6 +76,125 @@ fun HomeScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // My Plan Section
+            if (hasPlan && planDays.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "My Plan",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            planProgramName?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        TextButton(onClick = onViewMyPlan) {
+                            Text("View All")
+                        }
+                    }
+                }
+
+                item {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        itemsIndexed(planDays) { index, day ->
+                            Card(
+                                modifier = Modifier.width(200.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                )
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text(
+                                        text = day.dayLabel,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = day.routine?.routine?.name ?: "Workout",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        maxLines = 1
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "${day.routine?.exercises?.size ?: 0} exercises",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Button(
+                                        onClick = {
+                                            day.routine?.routine?.id?.let { onStartRoutine(it) }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.PlayArrow,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Start", style = MaterialTheme.typography.labelMedium)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // No plan - prompt to set one up
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onViewMyPlan() },
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.EventNote,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Set up your workout plan",
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    text = "Choose a 3-day or 5-day program to follow",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                }
+            }
+
             // Stats Card
             item {
                 Card(

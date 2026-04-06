@@ -8,16 +8,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.ui.components.EmptyState
 import com.fittrack.app.ui.components.MuscleGroupChipRow
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,13 +33,21 @@ fun RoutineListScreen(
     val viewModel: RoutinesViewModel = viewModel(
         factory = RoutinesViewModel.Factory(
             appModule.routineSuggestionEngine,
-            appModule.exerciseRepository
+            appModule.exerciseRepository,
+            appModule.userPlanRepository
         )
     )
 
     val selectedMuscleGroup by viewModel.selectedMuscleGroup.collectAsState()
     val selectedDays by viewModel.selectedDaysPerWeek.collectAsState()
     val routines by viewModel.filteredRoutines.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.addedToast.collectLatest { message ->
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -47,7 +59,8 @@ fun RoutineListScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -140,21 +153,36 @@ fun RoutineListScreen(
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.Top
                                 ) {
-                                    Text(
-                                        text = programName,
-                                        style = MaterialTheme.typography.titleMedium
-                                    )
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        AssistChip(
-                                            onClick = {},
-                                            label = { Text("${daysCount}x/week") }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = programName,
+                                            style = MaterialTheme.typography.titleMedium
                                         )
-                                        AssistChip(
-                                            onClick = {},
-                                            label = { Text(difficulty.replaceFirstChar { it.uppercase() }) }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            AssistChip(
+                                                onClick = {},
+                                                label = { Text("${daysCount}x/week") }
+                                            )
+                                            AssistChip(
+                                                onClick = {},
+                                                label = { Text(difficulty.replaceFirstChar { it.uppercase() }) }
+                                            )
+                                        }
+                                    }
+                                    FilledTonalButton(
+                                        onClick = { viewModel.addProgramToPlan(programName) }
+                                    ) {
+                                        Icon(
+                                            Icons.Default.EventNote,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
                                         )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Add to Plan")
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -218,21 +246,34 @@ fun RoutineListScreen(
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = routine.name,
-                                        style = MaterialTheme.typography.titleMedium
+                                        style = MaterialTheme.typography.titleMedium,
+                                        modifier = Modifier.weight(1f)
                                     )
-                                    AssistChip(
-                                        onClick = {},
-                                        label = {
-                                            Text(
-                                                routine.difficulty.replaceFirstChar { it.uppercase() },
-                                                style = MaterialTheme.typography.labelSmall
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        IconButton(
+                                            onClick = { viewModel.addStandaloneRoutineToPlan(routine.id, routine.name) }
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Add,
+                                                contentDescription = "Add to My Plan",
+                                                tint = MaterialTheme.colorScheme.primary
                                             )
                                         }
-                                    )
+                                        AssistChip(
+                                            onClick = {},
+                                            label = {
+                                                Text(
+                                                    routine.difficulty.replaceFirstChar { it.uppercase() },
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
+                                            }
+                                        )
+                                    }
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(

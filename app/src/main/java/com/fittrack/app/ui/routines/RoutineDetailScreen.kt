@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -12,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.di.AppModule
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,7 +26,8 @@ fun RoutineDetailScreen(
     val viewModel: RoutinesViewModel = viewModel(
         factory = RoutinesViewModel.Factory(
             appModule.routineSuggestionEngine,
-            appModule.exerciseRepository
+            appModule.exerciseRepository,
+            appModule.userPlanRepository
         )
     )
 
@@ -34,6 +37,13 @@ fun RoutineDetailScreen(
 
     val routineDetail by viewModel.routineDetail.collectAsState()
     val exerciseMap by viewModel.exerciseMap.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.addedToast.collectLatest { message ->
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -52,7 +62,8 @@ fun RoutineDetailScreen(
                 icon = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
                 text = { Text("Start Routine") }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         routineDetail?.let { detail ->
             LazyColumn(
@@ -106,6 +117,32 @@ fun RoutineDetailScreen(
                                 )
                             }
                         }
+                    }
+                }
+
+                // Add to My Plan button
+                item {
+                    val programName = detail.routine.programName
+                    OutlinedButton(
+                        onClick = {
+                            if (programName != null) {
+                                viewModel.addProgramToPlan(programName)
+                            } else {
+                                viewModel.addStandaloneRoutineToPlan(detail.routine.id, detail.routine.name)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            Icons.Default.EventNote,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            if (programName != null) "Add $programName to My Plan"
+                            else "Add to My Plan"
+                        )
                     }
                 }
 

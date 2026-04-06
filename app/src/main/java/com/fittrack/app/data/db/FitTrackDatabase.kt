@@ -8,6 +8,7 @@ import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.fittrack.app.data.db.dao.ExerciseDao
 import com.fittrack.app.data.db.dao.RoutineDao
+import com.fittrack.app.data.db.dao.UserPlanDao
 import com.fittrack.app.data.db.dao.WorkoutDao
 import com.fittrack.app.data.db.dao.WorkoutSetDao
 import com.fittrack.app.data.entity.*
@@ -22,9 +23,10 @@ import kotlinx.coroutines.launch
         WorkoutExercise::class,
         WorkoutSet::class,
         Routine::class,
-        RoutineExercise::class
+        RoutineExercise::class,
+        UserPlan::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -33,6 +35,7 @@ abstract class FitTrackDatabase : RoomDatabase() {
     abstract fun workoutDao(): WorkoutDao
     abstract fun workoutSetDao(): WorkoutSetDao
     abstract fun routineDao(): RoutineDao
+    abstract fun userPlanDao(): UserPlanDao
 
     companion object {
         @Volatile

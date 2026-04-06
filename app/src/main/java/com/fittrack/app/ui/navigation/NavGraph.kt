@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.ui.home.HomeScreen
+import com.fittrack.app.ui.myplan.MyPlanScreen
 import com.fittrack.app.ui.progress.ProgressScreen
 import com.fittrack.app.ui.routines.RoutineDetailScreen
 import com.fittrack.app.ui.routines.RoutineListScreen
@@ -29,7 +30,22 @@ fun NavGraph(
                 onViewHistory = { navController.navigate(Screen.WorkoutHistory.route) },
                 onViewProgress = { navController.navigate(Screen.Progress.route) },
                 onViewSuggestions = { navController.navigate(Screen.Suggestions.route) },
-                onViewWorkoutDetail = { navController.navigate(Screen.WorkoutDetail.createRoute(it)) }
+                onViewWorkoutDetail = { navController.navigate(Screen.WorkoutDetail.createRoute(it)) },
+                onViewMyPlan = { navController.navigate(Screen.MyPlan.route) },
+                onStartRoutine = { routineId ->
+                    navController.navigate(Screen.ActiveWorkout.createRoute(routineId))
+                }
+            )
+        }
+
+        composable(Screen.MyPlan.route) {
+            MyPlanScreen(
+                appModule = appModule,
+                onStartRoutine = { routineId ->
+                    navController.navigate(Screen.ActiveWorkout.createRoute(routineId))
+                },
+                onBrowseRoutines = { navController.navigate(Screen.Routines.route) },
+                onBack = { navController.popBackStack() }
             )
         }
 
