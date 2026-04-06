@@ -13,4 +13,12 @@ class RoutineRepository(private val routineDao: RoutineDao) {
         routineDao.getRoutinesForMuscleGroup(group)
 
     fun getRoutineById(id: Long): Flow<RoutineWithExercises?> = routineDao.getRoutineById(id)
+
+    fun getRoutinesByDaysPerWeek(days: Int): Flow<List<RoutineWithExercises>> =
+        routineDao.getRoutinesByDaysPerWeek(days)
+
+    fun getRoutinesByProgram(programName: String): Flow<List<RoutineWithExercises>> =
+        routineDao.getRoutinesByProgram(programName)
+
+    fun getAllProgramNames(): Flow<List<String>> = routineDao.getAllProgramNames()
 }

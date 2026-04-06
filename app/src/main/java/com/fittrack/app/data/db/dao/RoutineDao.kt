@@ -28,6 +28,17 @@ interface RoutineDao {
     @Query("SELECT * FROM routines WHERE id = :id")
     fun getRoutineById(id: Long): Flow<RoutineWithExercises?>
 
+    @Transaction
+    @Query("SELECT * FROM routines WHERE daysPerWeek = :days ORDER BY programName ASC, dayOrder ASC")
+    fun getRoutinesByDaysPerWeek(days: Int): Flow<List<RoutineWithExercises>>
+
+    @Transaction
+    @Query("SELECT * FROM routines WHERE programName = :programName ORDER BY dayOrder ASC")
+    fun getRoutinesByProgram(programName: String): Flow<List<RoutineWithExercises>>
+
+    @Query("SELECT DISTINCT programName FROM routines WHERE programName IS NOT NULL ORDER BY programName ASC")
+    fun getAllProgramNames(): Flow<List<String>>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertRoutine(routine: Routine): Long
 

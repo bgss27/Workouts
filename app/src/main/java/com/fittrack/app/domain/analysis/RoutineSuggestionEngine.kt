@@ -24,6 +24,18 @@ class RoutineSuggestionEngine(
         return routineRepository.getRoutineById(id)
     }
 
+    fun getRoutinesByDaysPerWeek(days: Int): Flow<List<RoutineWithExercises>> {
+        return routineRepository.getRoutinesByDaysPerWeek(days)
+    }
+
+    fun getRoutinesByProgram(programName: String): Flow<List<RoutineWithExercises>> {
+        return routineRepository.getRoutinesByProgram(programName)
+    }
+
+    fun getAllProgramNames(): Flow<List<String>> {
+        return routineRepository.getAllProgramNames()
+    }
+
     suspend fun getExercisesForMuscleGroup(muscleGroup: MuscleGroup): List<Exercise> {
         return exerciseRepository.getByMuscleGroup(muscleGroup).first()
     }

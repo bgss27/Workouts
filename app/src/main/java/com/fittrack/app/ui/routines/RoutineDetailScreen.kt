@@ -90,6 +90,20 @@ fun RoutineDetailScreen(
                                     onClick = {},
                                     label = { Text("${detail.exercises.size} exercises") }
                                 )
+                                if (detail.routine.daysPerWeek > 0) {
+                                    AssistChip(
+                                        onClick = {},
+                                        label = { Text("${detail.routine.daysPerWeek}x/week") }
+                                    )
+                                }
+                            }
+                            detail.routine.programName?.let { program ->
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Part of: $program",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
                             }
                         }
                     }

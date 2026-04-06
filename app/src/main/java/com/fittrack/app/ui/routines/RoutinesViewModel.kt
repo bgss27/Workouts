@@ -19,11 +19,14 @@ class RoutinesViewModel(
     private val _selectedMuscleGroup = MutableStateFlow<MuscleGroup?>(null)
     val selectedMuscleGroup: StateFlow<MuscleGroup?> = _selectedMuscleGroup
 
-    val routines: StateFlow<List<RoutineWithExercises>> = routineSuggestionEngine.getAllRoutines()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _selectedDaysPerWeek = MutableStateFlow<Int?>(null)
+    val selectedDaysPerWeek: StateFlow<Int?> = _selectedDaysPerWeek
 
     private val _filteredRoutines = MutableStateFlow<List<RoutineWithExercises>>(emptyList())
     val filteredRoutines: StateFlow<List<RoutineWithExercises>> = _filteredRoutines
+
+    val programNames: StateFlow<List<String>> = routineSuggestionEngine.getAllProgramNames()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _routineDetail = MutableStateFlow<RoutineWithExercises?>(null)
     val routineDetail: StateFlow<RoutineWithExercises?> = _routineDetail
@@ -42,14 +45,39 @@ class RoutinesViewModel(
         }
     }
 
+    fun selectDaysPerWeek(days: Int?) {
+        _selectedDaysPerWeek.value = days
+        _selectedMuscleGroup.value = null
+        refreshRoutines()
+    }
+
     fun selectMuscleGroup(group: MuscleGroup?) {
         _selectedMuscleGroup.value = group
+        refreshRoutines()
+    }
+
+    private fun refreshRoutines() {
         viewModelScope.launch {
-            if (group == null) {
-                routineSuggestionEngine.getAllRoutines().first()
-            } else {
-                routineSuggestionEngine.getRoutinesForMuscleGroup(group).first()
-            }.let { _filteredRoutines.value = it }
+            val days = _selectedDaysPerWeek.value
+            val group = _selectedMuscleGroup.value
+
+            val routines = when {
+                days != null && group != null -> {
+                    // Filter by both days and muscle group
+                    routineSuggestionEngine.getRoutinesByDaysPerWeek(days).first()
+                        .filter { it.routine.targetMuscleGroups.contains(group.name) }
+                }
+                days != null -> {
+                    routineSuggestionEngine.getRoutinesByDaysPerWeek(days).first()
+                }
+                group != null -> {
+                    routineSuggestionEngine.getRoutinesForMuscleGroup(group).first()
+                }
+                else -> {
+                    routineSuggestionEngine.getAllRoutines().first()
+                }
+            }
+            _filteredRoutines.value = routines
         }
     }
 
