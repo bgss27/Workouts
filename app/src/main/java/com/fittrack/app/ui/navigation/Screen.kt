@@ -5,6 +5,7 @@ import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -27,8 +28,9 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
         fun createRoute(routineId: Long): String = "routine_detail/$routineId"
     }
     data object Suggestions : Screen("suggestions", "Tips")
+    data object MlInsights : Screen("ml_insights", "Insights", Icons.Default.Psychology)
 
     companion object {
-        val bottomNavItems = listOf(Home, MyPlan, Progress, Routines)
+        val bottomNavItems = listOf(Home, MyPlan, MlInsights, Routines)
     }
 }

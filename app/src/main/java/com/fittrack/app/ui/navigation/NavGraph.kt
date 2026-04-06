@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.ui.home.HomeScreen
+import com.fittrack.app.ui.insights.MuscleInsightScreen
 import com.fittrack.app.ui.myplan.MyPlanScreen
 import com.fittrack.app.ui.progress.ProgressScreen
 import com.fittrack.app.ui.routines.RoutineDetailScreen
@@ -34,7 +35,8 @@ fun NavGraph(
                 onViewMyPlan = { navController.navigate(Screen.MyPlan.route) },
                 onStartRoutine = { routineId ->
                     navController.navigate(Screen.ActiveWorkout.createRoute(routineId))
-                }
+                },
+                onViewMlInsights = { navController.navigate(Screen.MlInsights.route) }
             )
         }
 
@@ -117,6 +119,13 @@ fun NavGraph(
 
         composable(Screen.Suggestions.route) {
             SuggestionsScreen(
+                appModule = appModule,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.MlInsights.route) {
+            MuscleInsightScreen(
                 appModule = appModule,
                 onBack = { navController.popBackStack() }
             )

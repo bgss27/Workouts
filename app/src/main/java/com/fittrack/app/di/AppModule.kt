@@ -8,6 +8,7 @@ import com.fittrack.app.data.repository.UserPlanRepository
 import com.fittrack.app.data.repository.WorkoutRepository
 import com.fittrack.app.domain.analysis.ProgressAnalyzer
 import com.fittrack.app.domain.analysis.RoutineSuggestionEngine
+import com.fittrack.app.domain.ml.MlAnalysisEngine
 
 class AppModule(context: Context) {
     private val database = FitTrackDatabase.getInstance(context)
@@ -19,4 +20,5 @@ class AppModule(context: Context) {
 
     val progressAnalyzer = ProgressAnalyzer(workoutRepository, exerciseRepository)
     val routineSuggestionEngine = RoutineSuggestionEngine(exerciseRepository, routineRepository)
+    val mlAnalysisEngine = MlAnalysisEngine(workoutRepository, exerciseRepository)
 }

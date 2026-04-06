@@ -30,7 +30,8 @@ fun HomeScreen(
     onViewSuggestions: () -> Unit,
     onViewWorkoutDetail: (Long) -> Unit,
     onViewMyPlan: () -> Unit,
-    onStartRoutine: (Long) -> Unit
+    onStartRoutine: (Long) -> Unit,
+    onViewMlInsights: () -> Unit
 ) {
     val viewModel: HomeViewModel = viewModel(
         factory = HomeViewModel.Factory(
@@ -251,15 +252,15 @@ fun HomeScreen(
                     OutlinedCard(
                         modifier = Modifier
                             .weight(1f)
-                            .clickable { onViewSuggestions() }
+                            .clickable { onViewMlInsights() }
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Default.Lightbulb, contentDescription = null)
+                            Icon(Icons.Default.Psychology, contentDescription = null)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("Tips", style = MaterialTheme.typography.labelMedium)
+                            Text("Insights", style = MaterialTheme.typography.labelMedium)
                         }
                     }
                     OutlinedCard(
