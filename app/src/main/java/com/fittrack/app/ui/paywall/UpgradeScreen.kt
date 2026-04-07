@@ -287,6 +287,41 @@ fun UpgradeScreen(
                     }
                 }
             }
+
+            // Debug toggle - always visible at the bottom
+            item {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                "Debug: Toggle Pro",
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            Text(
+                                "For testing only",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                        Switch(
+                            checked = isPro,
+                            onCheckedChange = { proManager.debugTogglePro() }
+                        )
+                    }
+                }
+            }
         }
     }
 }
