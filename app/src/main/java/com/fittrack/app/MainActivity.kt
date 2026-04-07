@@ -19,7 +19,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val appModule = (application as FitTrackApp).appModule
+        val app = application as FitTrackApp
+        val appModule = app.appModule
+        val proManager = app.proManager
 
         setContent {
             FitTrackTheme {
@@ -58,7 +60,8 @@ class MainActivity : ComponentActivity() {
                 ) { innerPadding ->
                     NavGraph(
                         navController = navController,
-                        appModule = appModule
+                        appModule = appModule,
+                        proManager = proManager
                     )
                 }
             }

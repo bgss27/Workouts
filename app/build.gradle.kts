@@ -72,4 +72,7 @@ dependencies {
 
     // JSON for TypeConverters
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+
+    // Google Play Billing
+    implementation("com.android.billingclient:billing-ktx:7.1.1")
 }

@@ -6,10 +6,14 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.fittrack.app.billing.ProFeature
+import com.fittrack.app.billing.ProManager
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.ui.home.HomeScreen
 import com.fittrack.app.ui.insights.MuscleInsightScreen
 import com.fittrack.app.ui.myplan.MyPlanScreen
+import com.fittrack.app.ui.paywall.ProGate
+import com.fittrack.app.ui.paywall.UpgradeScreen
 import com.fittrack.app.ui.progress.ProgressScreen
 import com.fittrack.app.ui.routines.RoutineDetailScreen
 import com.fittrack.app.ui.routines.RoutineListScreen
@@ -21,12 +25,14 @@ import com.fittrack.app.ui.workout.WorkoutHistoryScreen
 @Composable
 fun NavGraph(
     navController: NavHostController,
-    appModule: AppModule
+    appModule: AppModule,
+    proManager: ProManager
 ) {
     NavHost(navController = navController, startDestination = Screen.Home.route) {
         composable(Screen.Home.route) {
             HomeScreen(
                 appModule = appModule,
+                proManager = proManager,
                 onStartWorkout = { navController.navigate(Screen.ActiveWorkout.createRoute()) },
                 onViewHistory = { navController.navigate(Screen.WorkoutHistory.route) },
                 onViewProgress = { navController.navigate(Screen.Progress.route) },
@@ -36,7 +42,8 @@ fun NavGraph(
                 onStartRoutine = { routineId ->
                     navController.navigate(Screen.ActiveWorkout.createRoute(routineId))
                 },
-                onViewMlInsights = { navController.navigate(Screen.MlInsights.route) }
+                onViewMlInsights = { navController.navigate(Screen.MlInsights.route) },
+                onUpgrade = { navController.navigate(Screen.Upgrade.route) }
             )
         }
 
@@ -97,7 +104,9 @@ fun NavGraph(
         composable(Screen.Routines.route) {
             RoutineListScreen(
                 appModule = appModule,
+                proManager = proManager,
                 onRoutineClick = { navController.navigate(Screen.RoutineDetail.createRoute(it)) },
+                onUpgrade = { navController.navigate(Screen.Upgrade.route) },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -125,8 +134,21 @@ fun NavGraph(
         }
 
         composable(Screen.MlInsights.route) {
-            MuscleInsightScreen(
-                appModule = appModule,
+            ProGate(
+                proManager = proManager,
+                feature = ProFeature.ML_INSIGHTS,
+                onUpgradeClick = { navController.navigate(Screen.Upgrade.route) }
+            ) {
+                MuscleInsightScreen(
+                    appModule = appModule,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+        }
+
+        composable(Screen.Upgrade.route) {
+            UpgradeScreen(
+                proManager = proManager,
                 onBack = { navController.popBackStack() }
             )
         }

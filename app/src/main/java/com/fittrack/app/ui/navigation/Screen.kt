@@ -29,6 +29,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     }
     data object Suggestions : Screen("suggestions", "Tips")
     data object MlInsights : Screen("ml_insights", "Insights", Icons.Default.Psychology)
+    data object Upgrade : Screen("upgrade", "Upgrade")
 
     companion object {
         val bottomNavItems = listOf(Home, MyPlan, MlInsights, Routines)

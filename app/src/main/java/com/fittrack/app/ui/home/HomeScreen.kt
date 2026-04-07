@@ -24,6 +24,7 @@ import java.util.*
 @Composable
 fun HomeScreen(
     appModule: AppModule,
+    proManager: com.fittrack.app.billing.ProManager,
     onStartWorkout: () -> Unit,
     onViewHistory: () -> Unit,
     onViewProgress: () -> Unit,
@@ -31,7 +32,8 @@ fun HomeScreen(
     onViewWorkoutDetail: (Long) -> Unit,
     onViewMyPlan: () -> Unit,
     onStartRoutine: (Long) -> Unit,
-    onViewMlInsights: () -> Unit
+    onViewMlInsights: () -> Unit,
+    onUpgrade: () -> Unit
 ) {
     val viewModel: HomeViewModel = viewModel(
         factory = HomeViewModel.Factory(
@@ -50,6 +52,7 @@ fun HomeScreen(
     val hasPlan by viewModel.hasPlan.collectAsState()
     val planDays by viewModel.planDays.collectAsState()
     val planProgramName by viewModel.planProgramName.collectAsState()
+    val isPro by proManager.isPro.collectAsState()
 
     Scaffold(
         topBar = {
@@ -224,6 +227,48 @@ fun HomeScreen(
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
+                        }
+                    }
+                }
+            }
+
+            // Pro upgrade banner (only shown to free users)
+            if (!isPro) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onUpgrade() },
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Upgrade to Pro",
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    text = "Unlock ML insights, all programs, and more",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.5f)
+                            )
                         }
                     }
                 }

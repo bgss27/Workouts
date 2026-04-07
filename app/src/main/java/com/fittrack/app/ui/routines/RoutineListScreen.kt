@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,7 +28,9 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun RoutineListScreen(
     appModule: AppModule,
+    proManager: com.fittrack.app.billing.ProManager,
     onRoutineClick: (Long) -> Unit,
+    onUpgrade: () -> Unit,
     onBack: () -> Unit
 ) {
     val viewModel: RoutinesViewModel = viewModel(
@@ -41,6 +44,7 @@ fun RoutineListScreen(
     val selectedMuscleGroup by viewModel.selectedMuscleGroup.collectAsState()
     val selectedDays by viewModel.selectedDaysPerWeek.collectAsState()
     val routines by viewModel.filteredRoutines.collectAsState()
+    val isPro by proManager.isPro.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -173,16 +177,29 @@ fun RoutineListScreen(
                                             )
                                         }
                                     }
-                                    FilledTonalButton(
-                                        onClick = { viewModel.addProgramToPlan(programName) }
-                                    ) {
-                                        Icon(
-                                            Icons.Default.EventNote,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Add to Plan")
+                                    val canAccess = isPro || daysCount <= 3
+                                    if (canAccess) {
+                                        FilledTonalButton(
+                                            onClick = { viewModel.addProgramToPlan(programName) }
+                                        ) {
+                                            Icon(
+                                                Icons.Default.EventNote,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Add to Plan")
+                                        }
+                                    } else {
+                                        FilledTonalButton(onClick = onUpgrade) {
+                                            Icon(
+                                                Icons.Default.Lock,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("PRO")
+                                        }
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
