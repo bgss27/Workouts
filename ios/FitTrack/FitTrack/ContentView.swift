@@ -1,0 +1,43 @@
+import SwiftUI
+import SwiftData
+
+struct ContentView: View {
+    @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject var proManager: ProManager
+    @State private var selectedTab = 0
+    @State private var hasSeeded = false
+
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            HomeView()
+                .tabItem {
+                    Label("Home", systemImage: "house.fill")
+                }
+                .tag(0)
+
+            MyPlanView()
+                .tabItem {
+                    Label("My Plan", systemImage: "calendar")
+                }
+                .tag(1)
+
+            InsightsView()
+                .tabItem {
+                    Label("Insights", systemImage: "brain.head.profile")
+                }
+                .tag(2)
+
+            RoutineListView()
+                .tabItem {
+                    Label("Routines", systemImage: "list.bullet")
+                }
+                .tag(3)
+        }
+        .onAppear {
+            if !hasSeeded {
+                SeedData.seedIfNeeded(context: modelContext)
+                hasSeeded = true
+            }
+        }
+    }
+}
