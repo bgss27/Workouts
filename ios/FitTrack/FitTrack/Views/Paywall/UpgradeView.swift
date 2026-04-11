@@ -12,7 +12,7 @@ struct UpgradeView: View {
                     Image(systemName: "star.fill")
                         .font(.system(size: 60))
                         .foregroundColor(.yellow)
-                    Text(proManager.isPro ? "You're a Pro!" : "Unlock FitTrack Pro")
+                    Text(proManager.isPro ? "You're a Pro!" : "Unlock SmartGym Log Pro")
                         .font(.title.bold())
                     Text(proManager.isPro ? "You have access to all features" : "ML insights, all programs, and more")
                         .font(.subheadline).opacity(0.7)
