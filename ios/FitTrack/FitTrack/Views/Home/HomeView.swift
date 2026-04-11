@@ -49,7 +49,7 @@ struct HomeView: View {
                 }
                 .padding()
             }
-            .navigationTitle("SmartGym Log")
+            .navigationTitle("SmartGym Tracker")
         }
     }
 
