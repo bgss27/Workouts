@@ -87,10 +87,12 @@ class ProManager: ObservableObject {
     }
 
     private func listenForTransactions() -> Task<Void, Error> {
-        Task.detached { [weak self] in
+        Task.detached {
             for await result in Transaction.updates {
-                if let transaction = try? self?.checkVerified(result) {
-                    await MainActor.run { self?.isPro = true }
+                if case .verified(let transaction) = result {
+                    await MainActor.run { [weak self] in
+                        self?.isPro = true
+                    }
                     await transaction.finish()
                 }
             }
