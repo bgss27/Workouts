@@ -29,6 +29,7 @@
 		AA000001000000000000020 /* MyPlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000120 /* MyPlanView.swift */; };
 		AA000001000000000000021 /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000121 /* InsightsView.swift */; };
 		AA000001000000000000022 /* UpgradeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000122 /* UpgradeView.swift */; };
+		AA000001000000000000024 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000125 /* SettingsView.swift */; };
 		AA000001000000000000023 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000123 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -56,6 +57,7 @@
 		AA000001000000000000120 /* MyPlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyPlanView.swift; sourceTree = "<group>"; };
 		AA000001000000000000121 /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsView.swift; sourceTree = "<group>"; };
 		AA000001000000000000122 /* UpgradeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpgradeView.swift; sourceTree = "<group>"; };
+		AA000001000000000000125 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		AA000001000000000000123 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA000001000000000000124 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -145,8 +147,17 @@
 				AA000001000000000000364 /* MyPlan */,
 				AA000001000000000000365 /* Insights */,
 				AA000001000000000000366 /* Paywall */,
+				AA000001000000000000367 /* Settings */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		AA000001000000000000367 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				AA000001000000000000125 /* SettingsView.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		AA000001000000000000361 /* Home */ = {
@@ -289,6 +300,7 @@
 				AA000001000000000000020 /* MyPlanView.swift in Sources */,
 				AA000001000000000000021 /* InsightsView.swift in Sources */,
 				AA000001000000000000022 /* UpgradeView.swift in Sources */,
+				AA000001000000000000024 /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

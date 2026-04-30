@@ -14,6 +14,7 @@ import com.fittrack.app.ui.insights.MuscleInsightScreen
 import com.fittrack.app.ui.myplan.MyPlanScreen
 import com.fittrack.app.ui.paywall.ProGate
 import com.fittrack.app.ui.paywall.UpgradeScreen
+import com.fittrack.app.ui.settings.SettingsScreen
 import com.fittrack.app.ui.progress.ProgressScreen
 import com.fittrack.app.ui.routines.RoutineDetailScreen
 import com.fittrack.app.ui.routines.RoutineListScreen
@@ -144,6 +145,14 @@ fun NavGraph(
                     onBack = { navController.popBackStack() }
                 )
             }
+        }
+
+        composable(Screen.Settings.route) {
+            SettingsScreen(
+                proManager = proManager,
+                onNavigateToUpgrade = { navController.navigate(Screen.Upgrade.route) },
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable(Screen.Upgrade.route) {

@@ -32,6 +32,12 @@ struct ContentView: View {
                     Label("Routines", systemImage: "list.bullet")
                 }
                 .tag(3)
+
+            SettingsView()
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape.fill")
+                }
+                .tag(4)
         }
         .onAppear {
             if !hasSeeded {
