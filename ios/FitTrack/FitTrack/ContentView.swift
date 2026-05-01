@@ -21,15 +21,15 @@ struct ContentView: View {
                 }
                 .tag(1)
 
-            InsightsView()
+            ExercisesView()
                 .tabItem {
-                    Label("Insights", systemImage: "brain.head.profile")
+                    Label("Exercises", systemImage: "dumbbell.fill")
                 }
                 .tag(2)
 
-            RoutineListView()
+            InsightsView()
                 .tabItem {
-                    Label("Routines", systemImage: "list.bullet")
+                    Label("Insights", systemImage: "brain.head.profile")
                 }
                 .tag(3)
 

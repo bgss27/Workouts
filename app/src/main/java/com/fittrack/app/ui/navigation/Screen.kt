@@ -24,6 +24,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
         fun createRoute(workoutId: Long): String = "workout_detail/$workoutId"
     }
     data object Progress : Screen("progress", "Progress", Icons.Default.ShowChart)
+    data object Exercises : Screen("exercises", "Exercises", Icons.Default.FitnessCenter)
     data object Routines : Screen("routines", "Routines", Icons.Default.List)
     data object RoutineDetail : Screen("routine_detail/{routineId}", "Routine Detail") {
         fun createRoute(routineId: Long): String = "routine_detail/$routineId"
@@ -34,6 +35,6 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     data object Upgrade : Screen("upgrade", "Upgrade")
 
     companion object {
-        val bottomNavItems = listOf(Home, MyPlan, MlInsights, Routines, Settings)
+        val bottomNavItems = listOf(Home, MyPlan, Exercises, MlInsights, Settings)
     }
 }

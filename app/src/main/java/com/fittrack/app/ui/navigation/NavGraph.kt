@@ -10,6 +10,7 @@ import com.fittrack.app.billing.ProFeature
 import com.fittrack.app.billing.ProManager
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.ui.home.HomeScreen
+import com.fittrack.app.ui.exercises.ExercisesScreen
 import com.fittrack.app.ui.insights.MuscleInsightScreen
 import com.fittrack.app.ui.myplan.MyPlanScreen
 import com.fittrack.app.ui.paywall.ProGate
@@ -46,6 +47,10 @@ fun NavGraph(
                 onViewMlInsights = { navController.navigate(Screen.MlInsights.route) },
                 onUpgrade = { navController.navigate(Screen.Upgrade.route) }
             )
+        }
+
+        composable(Screen.Exercises.route) {
+            ExercisesScreen(appModule = appModule)
         }
 
         composable(Screen.MyPlan.route) {
