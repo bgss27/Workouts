@@ -114,61 +114,84 @@ struct ExerciseRow: View {
             .buttonStyle(.plain)
 
             if expanded {
+                let guide = ExerciseGuideData.getGuide(exercise.name)
+
                 VStack(alignment: .leading, spacing: 10) {
                     Divider()
                         .padding(.vertical, 6)
 
-                    // Primary muscle
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(Color.accentColor)
-                            .frame(width: 10, height: 10)
-                        Text("Primary:")
-                            .font(.caption.bold())
-                        Text(exercise.muscleGroup.displayName)
-                            .font(.caption)
-                    }
+                    // Movement animation
+                    MovementAnimationView(pattern: guide.movementPattern)
+                        .frame(height: 120)
+                        .frame(maxWidth: .infinity)
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(10)
 
-                    // Secondary muscle
+                    // Muscles
                     HStack(spacing: 8) {
-                        Circle()
-                            .fill(Color.teal)
-                            .frame(width: 10, height: 10)
-                        Text("Secondary:")
-                            .font(.caption.bold())
+                        Circle().fill(Color.accentColor).frame(width: 10, height: 10)
+                        Text("Primary:").font(.caption.bold())
+                        Text(exercise.muscleGroup.displayName).font(.caption)
+                    }
+                    HStack(spacing: 8) {
+                        Circle().fill(Color.teal).frame(width: 10, height: 10)
+                        Text("Secondary:").font(.caption.bold())
                         Text(exercise.secondaryMuscleGroup?.displayName ?? "None")
-                            .font(.caption)
-                            .foregroundColor(exercise.secondaryMuscleGroup != nil ? .primary : .secondary)
+                            .font(.caption).foregroundColor(exercise.secondaryMuscleGroup != nil ? .primary : .secondary)
                     }
-
-                    // Type
                     HStack(spacing: 8) {
-                        Image(systemName: "info.circle.fill")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        Text("Type:")
-                            .font(.caption.bold())
-                        Text(exercise.secondaryMuscleGroup != nil ? "Compound" : "Isolation")
-                            .font(.caption)
+                        Image(systemName: "info.circle.fill").font(.caption2).foregroundColor(.secondary)
+                        Text("Type:").font(.caption.bold())
+                        Text(exercise.secondaryMuscleGroup != nil ? "Compound" : "Isolation").font(.caption)
                     }
 
-                    // Muscles worked summary
+                    // How to perform
+                    Text("How to Perform").font(.caption.bold())
+                    ForEach(Array(guide.steps.enumerated()), id: \.0) { i, step in
+                        HStack(alignment: .top, spacing: 4) {
+                            Text("\(i + 1).").font(.caption.bold()).foregroundColor(.accentColor)
+                            Text(step).font(.caption)
+                        }
+                    }
+
+                    // Breathing
                     HStack(spacing: 6) {
-                        Text("Muscles worked:")
-                            .font(.caption.bold())
+                        Image(systemName: "wind").font(.caption2).foregroundColor(.teal)
+                        Text("Breathing:").font(.caption.bold())
+                    }
+                    Text(guide.breathingCue).font(.caption).padding(.leading, 20)
+
+                    // Tempo
+                    HStack(spacing: 6) {
+                        Image(systemName: "timer").font(.caption2).foregroundColor(.orange)
+                        Text("Tempo:").font(.caption.bold())
+                        Text(guide.tempo).font(.caption)
+                        if guide.tempo.contains("-") {
+                            Text("(ecc-pause-con)").font(.caption2).foregroundColor(.secondary)
+                        }
+                    }
+
+                    // Common mistakes
+                    Text("Common Mistakes").font(.caption.bold()).foregroundColor(.red)
+                    ForEach(guide.commonMistakes, id: \.self) { mistake in
+                        HStack(alignment: .top, spacing: 4) {
+                            Text("✗").font(.caption).foregroundColor(.red)
+                            Text(mistake).font(.caption)
+                        }
+                    }
+
+                    // Muscles worked chips
+                    HStack(spacing: 6) {
+                        Text("Muscles:").font(.caption.bold())
                         Text(exercise.muscleGroup.displayName)
                             .font(.caption2.bold())
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.accentColor.opacity(0.15))
-                            .cornerRadius(8)
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(Color.accentColor.opacity(0.15)).cornerRadius(8)
                         if let secondary = exercise.secondaryMuscleGroup {
                             Text(secondary.displayName)
                                 .font(.caption2.bold())
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(Color.teal.opacity(0.15))
-                                .cornerRadius(8)
+                                .padding(.horizontal, 8).padding(.vertical, 3)
+                                .background(Color.teal.opacity(0.15)).cornerRadius(8)
                         }
                     }
                 }

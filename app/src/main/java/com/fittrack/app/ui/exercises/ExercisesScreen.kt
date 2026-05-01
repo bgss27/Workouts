@@ -16,7 +16,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.data.entity.Exercise
 import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.di.AppModule
+import com.fittrack.app.domain.model.ExerciseGuideData
 import com.fittrack.app.ui.components.MuscleGroupChipRow
+import com.fittrack.app.ui.components.MovementAnimation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -172,83 +174,102 @@ private fun ExerciseDetailCard(exercise: Exercise) {
             }
 
             AnimatedVisibility(visible = expanded) {
+                val guide = ExerciseGuideData.getGuide(exercise.name)
+
                 Column(modifier = Modifier.padding(top = 12.dp)) {
                     HorizontalDivider(modifier = Modifier.padding(bottom = 12.dp))
 
-                    // Primary muscle
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Movement animation
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
                     ) {
-                        Icon(
-                            Icons.Default.Circle,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Text(
-                            text = "Primary:",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = exercise.muscleGroup.displayName,
-                            style = MaterialTheme.typography.bodyMedium
+                        MovementAnimation(
+                            pattern = guide.movementPattern,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    // Secondary muscle
+                    // Muscles
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.Circle,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.tertiary,
-                            modifier = Modifier.size(12.dp)
-                        )
+                        Icon(Icons.Default.Circle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(12.dp))
+                        Text("Primary:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        Text(exercise.muscleGroup.displayName, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Circle, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(12.dp))
+                        Text("Secondary:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                         Text(
-                            text = "Secondary:",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = exercise.secondaryMuscleGroup?.displayName ?: "None",
+                            exercise.secondaryMuscleGroup?.displayName ?: "None",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (exercise.secondaryMuscleGroup != null)
-                                MaterialTheme.colorScheme.onSurface
+                            color = if (exercise.secondaryMuscleGroup != null) MaterialTheme.colorScheme.onSurface
                             else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         )
                     }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), modifier = Modifier.size(12.dp))
+                        Text("Type:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        Text(if (exercise.secondaryMuscleGroup != null) "Compound" else "Isolation", style = MaterialTheme.typography.bodyMedium)
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // How to perform
+                    Text("How to Perform", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    guide.steps.forEachIndexed { i, step ->
+                        Row(modifier = Modifier.padding(vertical = 2.dp)) {
+                            Text("${i + 1}. ", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text(step, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Exercise type
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Info,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Text(
-                            text = "Type:",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = if (exercise.secondaryMuscleGroup != null) "Compound" else "Isolation",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                    // Breathing
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Air, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(14.dp))
+                        Text("Breathing:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    }
+                    Text(guide.breathingCue, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 20.dp))
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Tempo
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Timer, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(14.dp))
+                        Text("Tempo:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        Text(guide.tempo, style = MaterialTheme.typography.bodySmall)
+                        if (guide.tempo.contains("-")) {
+                            Text("(eccentric-pause-concentric)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Common mistakes
+                    Text("Common Mistakes", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    guide.commonMistakes.forEach { mistake ->
+                        Row(modifier = Modifier.padding(vertical = 1.dp)) {
+                            Text("  ✗  ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            Text(mistake, style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                 }
             }
