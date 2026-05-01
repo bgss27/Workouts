@@ -37,10 +37,12 @@ fun ActiveWorkoutScreen(
     val availableExercises by viewModel.availableExercises.collectAsState()
     val selectedMuscleGroup by viewModel.selectedMuscleGroup.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val guidance = viewModel.timeGuidance
 
     var showExercisePicker by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showFinishDialog by remember { mutableStateOf(false) }
+    var showTipsExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.isActive) {
         if (!uiState.isActive && uiState.workoutId > 0) {
@@ -100,6 +102,64 @@ fun ActiveWorkoutScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Time-of-day guidance banner
+                item {
+                    val bannerColor = when (guidance.timeOfDay) {
+                        com.fittrack.app.domain.analysis.TimeOfDay.MORNING -> MaterialTheme.colorScheme.tertiaryContainer
+                        com.fittrack.app.domain.analysis.TimeOfDay.AFTERNOON -> MaterialTheme.colorScheme.secondaryContainer
+                        com.fittrack.app.domain.analysis.TimeOfDay.EVENING -> MaterialTheme.colorScheme.primaryContainer
+                    }
+                    val bannerIcon = when (guidance.timeOfDay) {
+                        com.fittrack.app.domain.analysis.TimeOfDay.MORNING -> Icons.Default.WbSunny
+                        com.fittrack.app.domain.analysis.TimeOfDay.AFTERNOON -> Icons.Default.WbCloudy
+                        com.fittrack.app.domain.analysis.TimeOfDay.EVENING -> Icons.Default.NightsStay
+                    }
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = bannerColor),
+                        onClick = { showTipsExpanded = !showTipsExpanded }
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(bannerIcon, contentDescription = null, modifier = Modifier.size(20.dp))
+                                Text(guidance.tip, style = MaterialTheme.typography.labelMedium)
+                                Spacer(modifier = Modifier.weight(1f))
+                                Icon(
+                                    if (showTipsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            if (showTipsExpanded) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Warmup: ${guidance.warmupAdvice.description}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                guidance.detailedTips.forEach { tip ->
+                                    Row(modifier = Modifier.padding(vertical = 2.dp)) {
+                                        Text("  •  ", style = MaterialTheme.typography.bodySmall)
+                                        Text(tip, style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                                    }
+                                }
+                                if (guidance.intensityModifier < 1.0) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Suggested intensity: ${(guidance.intensityModifier * 100).toInt()}% of your usual weight",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 itemsIndexed(uiState.exercises) { index, exerciseState ->
                     ExerciseCard(
                         exerciseName = exerciseState.exercise.name,

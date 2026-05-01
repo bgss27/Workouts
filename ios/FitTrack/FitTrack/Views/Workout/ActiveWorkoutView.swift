@@ -28,9 +28,43 @@ struct ActiveWorkoutView: View {
         var isWarmup: Bool = false
     }
 
+    private let guidance = TimeOfDayAdvisor.getGuidance()
+    @State private var showTips = false
+
     var body: some View {
         NavigationStack {
             List {
+                // Time-of-day guidance banner
+                Section {
+                    DisclosureGroup(isExpanded: $showTips) {
+                        Text(guidance.warmupAdvice.description)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.bottom, 4)
+
+                        ForEach(guidance.detailedTips, id: \.self) { tip in
+                            HStack(alignment: .top, spacing: 6) {
+                                Text("•").font(.caption)
+                                Text(tip).font(.caption).foregroundColor(.secondary)
+                            }
+                        }
+
+                        if guidance.intensityModifier < 1.0 {
+                            Text("Suggested intensity: \(Int(guidance.intensityModifier * 100))% of usual weight")
+                                .font(.caption.bold())
+                                .foregroundColor(.accentColor)
+                                .padding(.top, 4)
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: guidance.timeOfDay.icon)
+                                .foregroundColor(.accentColor)
+                            Text(guidance.tip)
+                                .font(.subheadline.bold())
+                        }
+                    }
+                }
+
                 ForEach($exerciseEntries) { $entry in
                     Section {
                         ForEach($entry.sets) { $set in

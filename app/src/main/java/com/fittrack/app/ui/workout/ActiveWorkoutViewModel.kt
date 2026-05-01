@@ -8,6 +8,8 @@ import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.data.repository.ExerciseRepository
 import com.fittrack.app.data.repository.WorkoutRepository
 import com.fittrack.app.domain.analysis.RoutineSuggestionEngine
+import com.fittrack.app.domain.analysis.TimeBasedGuidance
+import com.fittrack.app.domain.analysis.TimeOfDayAdvisor
 import com.fittrack.app.ui.components.SetData
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -34,6 +36,8 @@ class ActiveWorkoutViewModel(
 
     private val _uiState = MutableStateFlow(ActiveWorkoutUiState())
     val uiState: StateFlow<ActiveWorkoutUiState> = _uiState
+
+    val timeGuidance: TimeBasedGuidance = TimeOfDayAdvisor.getGuidance()
 
     private val _availableExercises = MutableStateFlow<List<Exercise>>(emptyList())
     val availableExercises: StateFlow<List<Exercise>> = _availableExercises
