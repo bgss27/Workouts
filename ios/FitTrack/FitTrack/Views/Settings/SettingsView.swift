@@ -106,7 +106,7 @@ struct SettingsView: View {
                         Spacer()
                         Text("On-device only").foregroundColor(.secondary)
                     }
-                    Text("Exercise images provided by wger Workout Manager (wger.de) under CC BY-SA license.")
+                    Text("Exercise images provided by ExerciseDB and wger Workout Manager (wger.de) under CC BY-SA license.")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
