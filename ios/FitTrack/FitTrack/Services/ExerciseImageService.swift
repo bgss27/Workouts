@@ -1,155 +1,91 @@
 import Foundation
 
-struct ExerciseMediaData {
-    let gifUrl: URL
-    let name: String
-    let target: String
-    let secondaryMuscles: [String]
-}
+/**
+ * Provides exercise demonstration images from the free-exercise-db
+ * (github.com/yuhonas/free-exercise-db) - open source, no API key needed.
+ *
+ * Each exercise has 2 images: starting position (0.jpg) and end position (1.jpg).
+ */
+struct ExerciseImageService {
+    static let base = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises"
 
-@MainActor
-class ExerciseImageService: ObservableObject {
-    static let shared = ExerciseImageService()
-
-    @Published var media: [String: ExerciseMediaData?] = [:]
-    @Published var loadingStates: [String: Bool] = [:]
-
-    private let baseURL = "https://exercisedb-api.vercel.app/api/v1"
-
-    private let searchTermOverrides: [String: String] = [
-        "Barbell Bench Press": "barbell bench press",
-        "Incline Dumbbell Press": "incline dumbbell press",
-        "Dumbbell Bench Press": "dumbbell bench press",
-        "Cable Fly": "cable fly",
-        "Chest Dip": "chest dip",
-        "Push-Up": "push up",
-        "Incline Barbell Press": "incline barbell bench press",
-        "Pec Deck Machine": "pec deck",
-        "Barbell Row": "barbell bent over row",
-        "Pull-Up": "pull up",
-        "Lat Pulldown": "lat pulldown",
-        "Seated Cable Row": "seated cable row",
-        "Dumbbell Row": "dumbbell bent over row",
-        "T-Bar Row": "t bar bent over row",
-        "Face Pull": "cable face pull",
-        "Deadlift": "barbell deadlift",
-        "Overhead Press": "barbell overhead press",
-        "Lateral Raise": "dumbbell lateral raise",
-        "Front Raise": "dumbbell front raise",
-        "Rear Delt Fly": "dumbbell rear delt fly",
-        "Arnold Press": "dumbbell arnold press",
-        "Dumbbell Shoulder Press": "dumbbell shoulder press",
-        "Upright Row": "barbell upright row",
-        "Barbell Curl": "barbell curl",
-        "Dumbbell Curl": "dumbbell curl",
-        "Hammer Curl": "dumbbell hammer curl",
-        "Preacher Curl": "barbell preacher curl",
-        "Incline Dumbbell Curl": "dumbbell incline curl",
-        "Cable Curl": "cable curl",
-        "Concentration Curl": "dumbbell concentration curl",
-        "Tricep Pushdown": "cable pushdown",
-        "Skull Crushers": "barbell lying triceps extension skull crusher",
-        "Overhead Tricep Extension": "dumbbell overhead triceps extension",
-        "Close-Grip Bench Press": "close grip barbell bench press",
-        "Tricep Dip": "triceps dip",
-        "Cable Overhead Extension": "cable overhead triceps extension",
-        "Barbell Squat": "barbell full squat",
-        "Leg Press": "leg press",
-        "Romanian Deadlift": "barbell romanian deadlift",
-        "Leg Extension": "leg extension",
-        "Leg Curl": "leg curl",
-        "Bulgarian Split Squat": "dumbbell single leg split squat",
-        "Front Squat": "barbell front squat",
-        "Hack Squat": "sled hack squat",
-        "Walking Lunge": "dumbbell lunge",
-        "Hip Thrust": "barbell hip thrust",
-        "Glute Bridge": "barbell glute bridge",
-        "Cable Kickback": "cable kickback",
-        "Sumo Deadlift": "barbell sumo deadlift",
-        "Plank": "plank",
-        "Cable Crunch": "cable crunch",
-        "Hanging Leg Raise": "hanging leg raise",
-        "Ab Wheel Rollout": "wheel rollout",
-        "Russian Twist": "russian twist",
-        "Standing Calf Raise": "standing calf raise",
-        "Seated Calf Raise": "seated calf raise",
-        "Wrist Curl": "dumbbell wrist curl",
-        "Farmer's Walk": "farmer walk",
+    private static let imageMap: [String: String] = [
+        // Chest
+        "Barbell Bench Press": "Barbell_Bench_Press_-_Medium_Grip",
+        "Incline Dumbbell Press": "Incline_Dumbbell_Press",
+        "Dumbbell Bench Press": "Dumbbell_Bench_Press",
+        "Cable Fly": "Flat_Bench_Cable_Flyes",
+        "Chest Dip": "Dips_-_Chest_Version",
+        "Push-Up": "Close-Grip_Push-Up_off_of_a_Dumbbell",
+        "Incline Barbell Press": "Barbell_Incline_Bench_Press_-_Medium_Grip",
+        "Pec Deck Machine": "Butterfly",
+        // Back
+        "Barbell Row": "Bent_Over_Barbell_Row",
+        "Pull-Up": "Pullups",
+        "Lat Pulldown": "Wide-Grip_Lat_Pulldown",
+        "Seated Cable Row": "Seated_Cable_Rows",
+        "Dumbbell Row": "One-Arm_Dumbbell_Row",
+        "T-Bar Row": "T-Bar_Row_with_Handle",
+        "Face Pull": "Face_Pull",
+        "Deadlift": "Barbell_Deadlift",
+        // Shoulders
+        "Overhead Press": "Standing_Military_Press",
+        "Lateral Raise": "Side_Lateral_Raise",
+        "Front Raise": "Front_Dumbbell_Raise",
+        "Rear Delt Fly": "Seated_Bent-Over_Rear_Delt_Raise",
+        "Arnold Press": "Arnold_Dumbbell_Press",
+        "Dumbbell Shoulder Press": "Dumbbell_Shoulder_Press",
+        "Upright Row": "Upright_Barbell_Row",
+        // Biceps
+        "Barbell Curl": "Barbell_Curl",
+        "Dumbbell Curl": "Dumbbell_Bicep_Curl",
+        "Hammer Curl": "Alternate_Hammer_Curl",
+        "Preacher Curl": "Preacher_Curl",
+        "Incline Dumbbell Curl": "Incline_Dumbbell_Curl",
+        "Cable Curl": "Standing_Biceps_Cable_Curl",
+        "Concentration Curl": "Concentration_Curls",
+        // Triceps
+        "Tricep Pushdown": "Triceps_Pushdown",
+        "Skull Crushers": "Lying_Triceps_Press",
+        "Overhead Tricep Extension": "Dumbbell_One-Arm_Triceps_Extension",
+        "Close-Grip Bench Press": "Close-Grip_Barbell_Bench_Press",
+        "Tricep Dip": "Tricep_Dumbbell_Kickback",
+        "Cable Overhead Extension": "Lying_Cable_Curl",
+        // Legs
+        "Barbell Squat": "Barbell_Squat",
+        "Leg Press": "Leg_Press",
+        "Romanian Deadlift": "Romanian_Deadlift",
+        "Leg Extension": "Leg_Extensions",
+        "Leg Curl": "Lying_Leg_Curls",
+        "Bulgarian Split Squat": "Single_Leg_Push-off",
+        "Front Squat": "Front_Barbell_Squat",
+        "Hack Squat": "Hack_Squat",
+        "Walking Lunge": "Dumbbell_Lunges",
+        // Glutes
+        "Hip Thrust": "Barbell_Hip_Thrust",
+        "Glute Bridge": "Barbell_Glute_Bridge",
+        "Cable Kickback": "Glute_Kickback",
+        "Sumo Deadlift": "Sumo_Deadlift",
+        // Abs
+        "Plank": "Plank",
+        "Cable Crunch": "Cable_Crunch",
+        "Hanging Leg Raise": "Hanging_Leg_Raise",
+        "Ab Wheel Rollout": "Ab_Roller",
+        "Russian Twist": "Russian_Twist",
+        // Calves
+        "Standing Calf Raise": "Standing_Calf_Raises",
+        "Seated Calf Raise": "Seated_Calf_Raise",
+        // Forearms
+        "Wrist Curl": "Palms-Down_Wrist_Curl_Over_A_Bench",
+        "Reverse Wrist Curl": "Palms-Up_Barbell_Wrist_Curl_Over_A_Bench",
+        "Farmer's Walk": "Farmer's_Walk",
     ]
 
-    func loadMedia(for exerciseName: String) async {
-        guard media[exerciseName] == nil else { return }
-        loadingStates[exerciseName] = true
-
-        let searchTerm = searchTermOverrides[exerciseName] ?? exerciseName.lowercased()
-        let result = await searchExercise(term: searchTerm)
-        media[exerciseName] = result
-        loadingStates[exerciseName] = false
-    }
-
-    private func searchExercise(term: String) async -> ExerciseMediaData? {
-        // Try ExerciseDB first
-        if let result = await searchExerciseDB(term: term) {
-            return result
-        }
-        // Fallback to wger
-        return await searchWger(term: term)
-    }
-
-    private func searchExerciseDB(term: String) async -> ExerciseMediaData? {
-        guard let encoded = term.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "\(baseURL)/exercises?search=\(encoded)&limit=1") else { return nil }
-
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-
-            // Handle nested data format
-            let dataObj = json?["data"] as? [String: Any]
-            let exercises = dataObj?["exercises"] as? [[String: Any]]
-                ?? dataObj?["results"] as? [[String: Any]]
-                ?? (try? JSONSerialization.jsonObject(with: data) as? [[String: Any]])
-
-            guard let first = exercises?.first,
-                  let gifUrlStr = first["gifUrl"] as? String,
-                  let gifUrl = URL(string: gifUrlStr) else { return nil }
-
-            let secondaryMuscles = (first["secondaryMuscles"] as? [String]) ?? []
-
-            return ExerciseMediaData(
-                gifUrl: gifUrl,
-                name: (first["name"] as? String) ?? term,
-                target: (first["target"] as? String) ?? "",
-                secondaryMuscles: secondaryMuscles
-            )
-        } catch {
-            return nil
-        }
-    }
-
-    private func searchWger(term: String) async -> ExerciseMediaData? {
-        let encoded = term.replacingOccurrences(of: " ", with: "+")
-        guard let searchUrl = URL(string: "https://wger.de/api/v2/exercise/search/?term=\(encoded)&language=english&format=json") else { return nil }
-
-        do {
-            let (data, _) = try await URLSession.shared.data(from: searchUrl)
-            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-            guard let suggestions = json?["suggestions"] as? [[String: Any]],
-                  let first = suggestions.first,
-                  let dataObj = first["data"] as? [String: Any],
-                  let baseId = dataObj["base_id"] as? Int else { return nil }
-
-            guard let imgUrl = URL(string: "https://wger.de/api/v2/exerciseimage/?exercise_base=\(baseId)&format=json&limit=1") else { return nil }
-            let (imgData, _) = try await URLSession.shared.data(from: imgUrl)
-            let imgJson = try JSONSerialization.jsonObject(with: imgData) as? [String: Any]
-            guard let results = imgJson?["results"] as? [[String: Any]],
-                  let firstImg = results.first,
-                  let imageStr = firstImg["image"] as? String,
-                  let imageUrl = URL(string: imageStr) else { return nil }
-
-            return ExerciseMediaData(gifUrl: imageUrl, name: term, target: "", secondaryMuscles: [])
-        } catch {
-            return nil
-        }
+    static func getImageURLs(for exerciseName: String) -> [URL] {
+        guard let folder = imageMap[exerciseName] else { return [] }
+        return [
+            URL(string: "\(base)/\(folder)/0.jpg")!,
+            URL(string: "\(base)/\(folder)/1.jpg")!
+        ]
     }
 }

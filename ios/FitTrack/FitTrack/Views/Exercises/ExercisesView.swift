@@ -92,7 +92,6 @@ struct ExercisesView: View {
 struct ExerciseRow: View {
     let exercise: Exercise
     @State private var expanded = false
-    @StateObject private var imageService = ExerciseImageService.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

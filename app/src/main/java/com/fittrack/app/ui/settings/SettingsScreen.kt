@@ -316,7 +316,7 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Exercise images provided by ExerciseDB and wger Workout Manager (wger.de) under CC BY-SA license.",
+                        text = "Exercise images from free-exercise-db (github.com/yuhonas/free-exercise-db). Open source.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                     )
