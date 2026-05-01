@@ -17,8 +17,8 @@ import com.fittrack.app.data.entity.Exercise
 import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.domain.model.ExerciseGuideData
+import com.fittrack.app.ui.components.ExerciseImageGallery
 import com.fittrack.app.ui.components.MuscleGroupChipRow
-import com.fittrack.app.ui.components.MovementAnimation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -179,19 +179,8 @@ private fun ExerciseDetailCard(exercise: Exercise) {
                 Column(modifier = Modifier.padding(top = 12.dp)) {
                     HorizontalDivider(modifier = Modifier.padding(bottom = 12.dp))
 
-                    // Movement animation
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        )
-                    ) {
-                        MovementAnimation(
-                            pattern = guide.movementPattern,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
-                        )
-                    }
+                    // Exercise images from wger API
+                    ExerciseImageGallery(exerciseName = exercise.name)
 
                     Spacer(modifier = Modifier.height(12.dp))
 

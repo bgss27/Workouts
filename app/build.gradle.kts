@@ -73,6 +73,10 @@ dependencies {
     // JSON for TypeConverters
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
+    // Image loading
+    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("io.coil-kt:coil-gif:2.7.0")
+
     // Google Play Billing
     implementation("com.android.billingclient:billing-ktx:7.1.1")
 }

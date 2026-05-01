@@ -314,6 +314,12 @@ fun SettingsScreen(
                         Text("Data Storage", style = MaterialTheme.typography.bodyMedium)
                         Text("On-device only", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Exercise images provided by wger Workout Manager (wger.de) under CC BY-SA license.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
                 }
             }
 

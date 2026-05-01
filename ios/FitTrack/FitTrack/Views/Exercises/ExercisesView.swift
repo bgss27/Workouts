@@ -92,6 +92,7 @@ struct ExercisesView: View {
 struct ExerciseRow: View {
     let exercise: Exercise
     @State private var expanded = false
+    @StateObject private var imageService = ExerciseImageService.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -120,11 +121,9 @@ struct ExerciseRow: View {
                     Divider()
                         .padding(.vertical, 6)
 
-                    // Movement animation
-                    MovementAnimationView(pattern: guide.movementPattern)
-                        .frame(height: 120)
-                        .frame(maxWidth: .infinity)
-                        .background(Color(.secondarySystemBackground))
+                    // Exercise images from wger API
+                    ExerciseImageGalleryView(exerciseName: exercise.name)
+                        .frame(height: 200)
                         .cornerRadius(10)
 
                     // Muscles

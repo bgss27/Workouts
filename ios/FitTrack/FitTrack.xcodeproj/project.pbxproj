@@ -34,6 +34,8 @@
 		AA000001000000000000022 /* UpgradeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000122 /* UpgradeView.swift */; };
 		AA000001000000000000024 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000125 /* SettingsView.swift */; };
 		AA000001000000000000025 /* ExercisesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000126 /* ExercisesView.swift */; };
+		AA000001000000000000030 /* ExerciseImageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000130 /* ExerciseImageService.swift */; };
+		AA000001000000000000031 /* ExerciseImageGalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000131 /* ExerciseImageGalleryView.swift */; };
 		AA000001000000000000023 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000123 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -54,6 +56,8 @@
 		AA000001000000000000127 /* TimeOfDayAdvisor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeOfDayAdvisor.swift; sourceTree = "<group>"; };
 		AA000001000000000000128 /* ExerciseGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseGuide.swift; sourceTree = "<group>"; };
 		AA000001000000000000129 /* MovementAnimationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovementAnimationView.swift; sourceTree = "<group>"; };
+		AA000001000000000000130 /* ExerciseImageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseImageService.swift; sourceTree = "<group>"; };
+		AA000001000000000000131 /* ExerciseImageGalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseImageGalleryView.swift; sourceTree = "<group>"; };
 		AA000001000000000000113 /* LinearRegression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinearRegression.swift; sourceTree = "<group>"; };
 		AA000001000000000000114 /* MuscleInsight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MuscleInsight.swift; sourceTree = "<group>"; };
 		AA000001000000000000115 /* MlAnalysisEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MlAnalysisEngine.swift; sourceTree = "<group>"; };
@@ -134,6 +138,7 @@
 				AA000001000000000000112 /* ProManager.swift */,
 				AA000001000000000000127 /* TimeOfDayAdvisor.swift */,
 				AA000001000000000000128 /* ExerciseGuide.swift */,
+				AA000001000000000000130 /* ExerciseImageService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -176,6 +181,7 @@
 			children = (
 				AA000001000000000000126 /* ExercisesView.swift */,
 				AA000001000000000000129 /* MovementAnimationView.swift */,
+				AA000001000000000000131 /* ExerciseImageGalleryView.swift */,
 			);
 			path = Exercises;
 			sourceTree = "<group>";
@@ -325,6 +331,8 @@
 				AA000001000000000000026 /* TimeOfDayAdvisor.swift in Sources */,
 				AA000001000000000000027 /* ExerciseGuide.swift in Sources */,
 				AA000001000000000000028 /* MovementAnimationView.swift in Sources */,
+				AA000001000000000000030 /* ExerciseImageService.swift in Sources */,
+				AA000001000000000000031 /* ExerciseImageGalleryView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
