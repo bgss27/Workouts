@@ -4,6 +4,8 @@ import com.fittrack.app.data.entity.Exercise
 import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.data.entity.WorkoutSet
 import com.fittrack.app.data.repository.ExerciseRepository
+import com.fittrack.app.data.repository.RoutineRepository
+import com.fittrack.app.data.repository.UserPlanRepository
 import com.fittrack.app.data.repository.WorkoutRepository
 import com.fittrack.app.domain.model.ProgressDataPoint
 import com.fittrack.app.domain.model.Suggestion
@@ -13,7 +15,9 @@ import kotlinx.coroutines.flow.map
 
 class ProgressAnalyzer(
     private val workoutRepository: WorkoutRepository,
-    private val exerciseRepository: ExerciseRepository
+    private val exerciseRepository: ExerciseRepository,
+    private val userPlanRepository: UserPlanRepository,
+    private val routineRepository: RoutineRepository,
 ) {
     companion object {
         private const val PLATEAU_THRESHOLD = 0.01 // 1% improvement threshold
@@ -168,26 +172,83 @@ class ProgressAnalyzer(
         val fourWeeksAgo = System.currentTimeMillis() - (28L * 24 * 60 * 60 * 1000)
         val workouts = workoutRepository.getWorkoutsInRange(fourWeeksAgo, System.currentTimeMillis()).first()
 
-        val muscleGroupFrequency = mutableMapOf<MuscleGroup, Int>()
+        // Count DISTINCT workout days per muscle group (not exercises). A
+        // workout with 5 back exercises still counts as one back day —
+        // that's what "frequency per week" actually means.
+        val muscleGroupDays = mutableMapOf<MuscleGroup, Int>()
         for (workout in workouts) {
+            val groupsHit = mutableSetOf<MuscleGroup>()
             for (workoutExercise in workout.exercises) {
                 val exercise = exerciseRepository.getById(workoutExercise.exerciseId) ?: continue
-                muscleGroupFrequency[exercise.muscleGroup] =
-                    (muscleGroupFrequency[exercise.muscleGroup] ?: 0) + 1
+                groupsHit.add(exercise.muscleGroup)
+            }
+            for (g in groupsHit) {
+                muscleGroupDays[g] = (muscleGroupDays[g] ?: 0) + 1
             }
         }
 
+        // Pull the user's plan-prescribed frequency. If they're on a 5-day
+        // bro split that only schedules Back once a week, hitting Back 1x/week
+        // means they're ON TRACK — don't tell them to do more. Fall back to
+        // the generic 2x/week rule only when no plan is set.
+        val planned = computePlannedFrequencyPerWeek()
+
+        // Skip frequency suggestions until the user has at least 2 weeks of
+        // history. Before that any "you only did Shoulders 1 time" alert is
+        // premature noise — they may just be 3 days into the app.
+        val firstWorkoutMs = workouts.minOfOrNull { it.workout.startTime }
+        if (firstWorkoutMs != null) {
+            val daysSpan = (System.currentTimeMillis() - firstWorkoutMs) / (24L * 60 * 60 * 1000)
+            if (daysSpan < 14) return
+        }
+
         val weeksTracked = 4
-        for ((group, totalSessions) in muscleGroupFrequency) {
-            val freqPerWeek = totalSessions / weeksTracked
-            if (freqPerWeek < 2 && group != MuscleGroup.CARDIO) {
+        // Iterate over every muscle group the plan covers, not just the ones
+        // the user has touched. Otherwise a never-trained muscle silently
+        // skips the check.
+        val groupsToCheck = (muscleGroupDays.keys + planned.keys).distinct()
+        for (group in groupsToCheck) {
+            if (group == MuscleGroup.CARDIO) continue
+            val totalDays = muscleGroupDays[group] ?: 0
+            val target = planned[group] ?: 2
+            val expectedTotal = target * weeksTracked
+            // Compare totals — int per-week division truncates 1/4, 2/4, 3/4
+            // all to 0, which was the source of the "training shoulders 0
+            // times" bug even when the user had been doing it.
+            if (totalDays < expectedTotal) {
                 suggestions.add(Suggestion.IncreaseFrequency(
                     muscleGroup = group,
-                    currentFreqPerWeek = freqPerWeek,
-                    suggestedFreqPerWeek = 2
+                    sessionsLast4Weeks = totalDays,
+                    suggestedFreqPerWeek = target,
                 ))
             }
         }
+    }
+
+    /**
+     * Days-per-week that each muscle group is scheduled by the user's current
+     * plan. Each plan day's routine contributes one "day" for every muscle
+     * group that has at least one exercise in that routine (primary muscle
+     * only — secondary work is too noisy to count as a session). Returns
+     * empty when there's no plan, signalling callers to fall back to a
+     * generic threshold.
+     */
+    private suspend fun computePlannedFrequencyPerWeek(): Map<MuscleGroup, Int> {
+        val plans = userPlanRepository.getAllPlans().first()
+        if (plans.isEmpty()) return emptyMap()
+        val planned = mutableMapOf<MuscleGroup, Int>()
+        for (plan in plans) {
+            val routine = routineRepository.getRoutineById(plan.routineId).first() ?: continue
+            val groupsInRoutine = mutableSetOf<MuscleGroup>()
+            for (re in routine.exercises) {
+                val ex = exerciseRepository.getById(re.exerciseId) ?: continue
+                groupsInRoutine.add(ex.muscleGroup)
+            }
+            for (g in groupsInRoutine) {
+                planned[g] = (planned[g] ?: 0) + 1
+            }
+        }
+        return planned
     }
 
     private suspend fun suggestNewExercises(
@@ -216,4 +277,63 @@ class ProgressAnalyzer(
         // Epley formula
         return weight * (1 + reps / 30.0)
     }
+
+    /**
+     * Detect 1RM personal records set in the given workout. For each exercise
+     * performed, compares the best estimated 1RM in this workout against the
+     * user's best across all OTHER completed workouts. Returns one [PRResult]
+     * per exercise where the new best beats the previous by more than 0.5 kg.
+     *
+     * Returns an empty list when the user has no prior data for an exercise —
+     * the very first time logging something isn't a "PR" celebration.
+     */
+    suspend fun detectPRs(workoutId: Long): List<PRResult> {
+        val workoutWithExercises = workoutRepository.getWorkoutById(workoutId).first() ?: return emptyList()
+        val results = mutableListOf<PRResult>()
+
+        for (we in workoutWithExercises.exercises) {
+            val exercise = exerciseRepository.getById(we.exerciseId) ?: continue
+            // workoutExerciseIds for this exercise within the current workout —
+            // used to exclude this workout's contributions when computing "previous best".
+            val currentWeIds = workoutWithExercises.exercises
+                .filter { it.exerciseId == we.exerciseId }
+                .map { it.id }
+                .toSet()
+
+            val currentSets = workoutRepository
+                .getSetsForWorkoutExercise(we.id).first()
+                .filter { !it.isWarmup }
+            if (currentSets.isEmpty()) continue
+            val newBest = currentSets.maxOf { estimateOneRepMax(it.weightKg, it.reps) }
+
+            val allHistoric = workoutRepository
+                .getAllSetsForExercise(we.exerciseId).first()
+            val previousSets = allHistoric.filter { it.workoutExerciseId !in currentWeIds }
+            val previousBest = previousSets
+                .maxOfOrNull { estimateOneRepMax(it.weightKg, it.reps) } ?: 0.0
+
+            // Skip first-time exercises (no prior best to beat) and skip
+            // sub-0.5kg improvements that are likely floating-point or unit-
+            // conversion noise rather than a real PR.
+            if (previousBest > 0 && newBest > previousBest + 0.5) {
+                results += PRResult(
+                    exerciseName = exercise.name,
+                    newBest1RM = newBest,
+                    previousBest1RM = previousBest,
+                    delta = newBest - previousBest,
+                )
+            }
+        }
+
+        // Stable order by largest delta first so the headline PR shows on top.
+        return results.sortedByDescending { it.delta }
+    }
 }
+
+/** A 1RM personal record set in a single workout. Weights in kg. */
+data class PRResult(
+    val exerciseName: String,
+    val newBest1RM: Double,
+    val previousBest1RM: Double,
+    val delta: Double,
+)

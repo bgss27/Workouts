@@ -7,11 +7,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.fittrack.app.billing.ProManager
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.ui.components.EmptyState
 import java.text.SimpleDateFormat
@@ -21,6 +23,8 @@ import java.util.*
 @Composable
 fun WorkoutHistoryScreen(
     appModule: AppModule,
+    isPro: Boolean,
+    onUpgrade: () -> Unit,
     onWorkoutClick: (Long) -> Unit,
     onBack: () -> Unit
 ) {
@@ -36,6 +40,14 @@ fun WorkoutHistoryScreen(
     val dateFormat = SimpleDateFormat("EEEE, MMM d, yyyy", Locale.getDefault())
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
+    val historyCutoff = remember {
+        System.currentTimeMillis() - ProManager.FREE_HISTORY_DAYS * 24L * 60 * 60 * 1000
+    }
+    val completed = workouts.filter { it.workout.endTime != null }
+    val displayed = if (isPro) completed else completed.filter { it.workout.startTime >= historyCutoff }
+    val hiddenCount = completed.size - displayed.size
+    val isClamped = !isPro && hiddenCount > 0
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -48,7 +60,7 @@ fun WorkoutHistoryScreen(
             )
         }
     ) { padding ->
-        if (workouts.isEmpty()) {
+        if (completed.isEmpty()) {
             EmptyState(
                 icon = Icons.Default.FitnessCenter,
                 title = "No workout history",
@@ -63,7 +75,7 @@ fun WorkoutHistoryScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(workouts.filter { it.workout.endTime != null }) { workoutWithExercises ->
+                items(displayed) { workoutWithExercises ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -105,6 +117,39 @@ fun WorkoutHistoryScreen(
                         }
                     }
                 }
+
+                if (isClamped) {
+                    item { FullHistoryUpgradeCta(hiddenCount = hiddenCount, onUpgrade = onUpgrade) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FullHistoryUpgradeCta(hiddenCount: Int, onUpgrade: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Showing the last ${ProManager.FREE_HISTORY_DAYS} days",
+                style = MaterialTheme.typography.titleSmall
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "$hiddenCount older workout${if (hiddenCount == 1) "" else "s"} hidden. Unlock full history with Pro.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(onClick = onUpgrade) {
+                Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Unlock with Pro")
             }
         }
     }

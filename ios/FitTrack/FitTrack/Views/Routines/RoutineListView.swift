@@ -3,7 +3,6 @@ import SwiftData
 
 struct RoutineListView: View {
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject var proManager: ProManager
     @Query(sort: \Routine.name) private var routines: [Routine]
     @State private var selectedDays: Int? = nil
     @State private var toastMessage: String?
@@ -43,7 +42,6 @@ struct RoutineListView: View {
                     ForEach(programRoutines, id: \.0) { programName, days in
                         let sorted = days.sorted { $0.dayOrder < $1.dayOrder }
                         let daysCount = sorted.first?.daysPerWeek ?? 0
-                        let canAccess = proManager.canAccessProgram(daysPerWeek: daysCount)
 
                         VStack(spacing: 4) {
                             // Program header
@@ -54,19 +52,10 @@ struct RoutineListView: View {
                                         .font(.caption).opacity(0.6)
                                 }
                                 Spacer()
-                                if canAccess {
-                                    Button("Add to Plan") { addProgramToPlan(programName, sorted) }
-                                        .font(.caption.bold())
-                                        .buttonStyle(.borderedProminent)
-                                        .controlSize(.small)
-                                } else {
-                                    Button { } label: {
-                                        Label("PRO", systemImage: "lock.fill")
-                                    }
+                                Button("Add to Plan") { addProgramToPlan(programName, sorted) }
                                     .font(.caption.bold())
-                                    .buttonStyle(.bordered)
+                                    .buttonStyle(.borderedProminent)
                                     .controlSize(.small)
-                                }
                             }
                             .padding()
                             .background(Color.accentColor.opacity(0.1))

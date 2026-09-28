@@ -28,10 +28,34 @@ class ProgressViewModel(
     private val _progressData = MutableStateFlow<List<ProgressDataPoint>>(emptyList())
     val progressData: StateFlow<List<ProgressDataPoint>> = _progressData
 
+    /**
+     * Per-exercise 1RM sparkline data. Map keyed by exercise.id; each value
+     * is a recent-history list (≤ 8 points) of estimated-1RM values, oldest
+     * to newest. Populated lazily as exercises load — only the visible
+     * exercises matter, but the dataset is small enough that bulk-fetch
+     * up front keeps the UI snappy.
+     */
+    private val _sparklineData = MutableStateFlow<Map<Long, List<Double>>>(emptyMap())
+    val sparklineData: StateFlow<Map<Long, List<Double>>> = _sparklineData
+
     init {
         viewModelScope.launch {
-            exerciseRepository.getAllExercises().collect { _exercises.value = it }
+            exerciseRepository.getAllExercises().collect { list ->
+                _exercises.value = list
+                refreshSparklines(list)
+            }
         }
+    }
+
+    private suspend fun refreshSparklines(exercises: List<Exercise>) {
+        val out = mutableMapOf<Long, List<Double>>()
+        for (exercise in exercises) {
+            val points = progressAnalyzer.getProgressForExerciseAllTime(exercise.id).first()
+            if (points.size >= 2) {
+                out[exercise.id] = points.takeLast(8).map { it.estimated1RM }
+            }
+        }
+        _sparklineData.value = out
     }
 
     fun selectMuscleGroup(group: MuscleGroup?) {

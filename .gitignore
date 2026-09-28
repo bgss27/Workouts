@@ -9,3 +9,12 @@
 .cxx
 local.properties
 /app/build
+
+# Backup and scratch files
+*.bak
+*.bak.*
+*.fetch
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate

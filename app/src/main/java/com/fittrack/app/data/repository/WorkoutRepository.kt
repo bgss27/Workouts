@@ -23,17 +23,43 @@ class WorkoutRepository(
 
     fun getCompletedWorkoutCount(): Flow<Int> = workoutDao.getCompletedWorkoutCount()
 
+    fun getCompletedWorkoutCountSince(sinceMs: Long): Flow<Int> =
+        workoutDao.getCompletedWorkoutCountSince(sinceMs)
+
+    fun getTotalVolumeKg(): Flow<Double> = workoutDao.getTotalVolumeKg()
+
     suspend fun getActiveWorkout(): Workout? = workoutDao.getActiveWorkout()
 
-    suspend fun startWorkout(): Long = workoutDao.insert(Workout())
+    /**
+     * Start a new workout. Any previously-orphaned in-progress workouts
+     * (rows with endTime = null left by a force-quit / system-back exit) are
+     * cleaned up first so they don't accumulate.
+     */
+    suspend fun startWorkout(): Long {
+        workoutDao.deleteStaleActiveWorkouts()
+        return workoutDao.insert(Workout())
+    }
 
     suspend fun finishWorkout(workoutId: Long, notes: String? = null) {
-        workoutDao.getActiveWorkout()?.let { workout ->
-            if (workout.id == workoutId) {
-                workoutDao.update(workout.copy(endTime = System.currentTimeMillis(), notes = notes))
-            }
-        }
+        // Target by id directly. The previous implementation looked up the
+        // "active" workout and silently no-op'd if a stale row had the same
+        // endTime IS NULL state — that's the cause of the missing-count bug.
+        workoutDao.finishWorkoutById(workoutId, System.currentTimeMillis(), notes)
     }
+
+    /**
+     * Insert a workout that was completed in the past (manually logged after
+     * the fact, e.g. the user trained without opening the app). [startTime]
+     * and [endTime] are explicit epoch millis. Returns the new workout id so
+     * the caller can attach exercises + sets.
+     */
+    suspend fun insertPastWorkout(
+        startTime: Long,
+        endTime: Long,
+        notes: String? = null,
+    ): Long = workoutDao.insert(
+        Workout(startTime = startTime, endTime = endTime, notes = notes)
+    )
 
     suspend fun deleteWorkout(id: Long) = workoutDao.delete(id)
 
@@ -60,6 +86,9 @@ class WorkoutRepository(
 
     suspend fun removeExerciseFromWorkout(workoutExerciseId: Long) =
         workoutSetDao.deleteWorkoutExercise(workoutExerciseId)
+
+    suspend fun updateSupersetGroup(workoutExerciseId: Long, groupId: Long?) =
+        workoutSetDao.updateSupersetGroup(workoutExerciseId, groupId)
 
     fun getSetsForExerciseInRange(exerciseId: Long, startTime: Long, endTime: Long): Flow<List<WorkoutSet>> =
         workoutSetDao.getSetsForExerciseInRange(exerciseId, startTime, endTime)

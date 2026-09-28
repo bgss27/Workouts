@@ -153,3 +153,118 @@ struct TimeOfDayAdvisor {
         )
     }
 }
+
+// MARK: - Warmup catalog
+
+/// A single warmup or mobility movement. `prescription` is the volume cue
+/// ("2 × 10 reps"); `note` is an optional one-liner shown in smaller text.
+struct WarmupExercise: Identifiable {
+    let id = UUID()
+    let name: String
+    let prescription: String
+    let note: String?
+
+    init(_ name: String, _ prescription: String, note: String? = nil) {
+        self.name = name
+        self.prescription = prescription
+        self.note = note
+    }
+}
+
+struct WarmupSection: Identifiable {
+    let id = UUID()
+    let title: String
+    let exercises: [WarmupExercise]
+}
+
+/// Surfaces concrete warmup exercises tailored to the muscle groups being
+/// trained. Mirror of Android's `WarmupCatalog.kt` — keep both in sync.
+enum WarmupCatalog {
+
+    private static let maxActivationSections = 3
+
+    private static let general: [WarmupExercise] = [
+        WarmupExercise("Arm circles", "30s forward, 30s backward"),
+        WarmupExercise("Leg swings", "10 each side, front/back & lateral"),
+        WarmupExercise("Hip circles", "10 each direction"),
+        WarmupExercise("Bodyweight squats", "10 reps", note: "Slow and controlled"),
+        WarmupExercise("Cat-cow stretches", "10 reps"),
+    ]
+
+    private static let byMuscleGroup: [MuscleGroup: [WarmupExercise]] = [
+        .chest: [
+            WarmupExercise("Scapular push-ups", "2 × 10 reps"),
+            WarmupExercise("Band pull-aparts", "2 × 15 reps"),
+            WarmupExercise("Wall slides", "2 × 10 reps"),
+        ],
+        .back: [
+            WarmupExercise("Dead hangs", "2 × 15 seconds"),
+            WarmupExercise("Scapular pulls", "2 × 10 reps", note: "Hang and pull shoulders down"),
+            WarmupExercise("Band rows", "2 × 15 reps"),
+        ],
+        .shoulders: [
+            WarmupExercise("Band shoulder dislocates", "2 × 10 reps", note: "Or broomstick / PVC"),
+            WarmupExercise("Wall slides", "2 × 10 reps"),
+            WarmupExercise("Empty-bar overhead press", "2 × 10 reps"),
+        ],
+        .biceps: [
+            WarmupExercise("Light dumbbell curls", "2 × 10 reps", note: "20–30% of working weight"),
+            WarmupExercise("Band curls", "2 × 15 reps"),
+        ],
+        .triceps: [
+            WarmupExercise("Light tricep pushdowns", "2 × 10 reps", note: "30–40% of working weight"),
+            WarmupExercise("Band pushdowns", "2 × 15 reps"),
+            WarmupExercise("Diamond push-ups (knees)", "2 × 10 reps"),
+        ],
+        .legs: [
+            WarmupExercise("Bodyweight squats", "2 × 10 reps"),
+            WarmupExercise("Walking lunges", "10 steps per leg"),
+            WarmupExercise("Goblet squats (light)", "2 × 10 reps", note: "Light dumbbell or kettlebell"),
+            WarmupExercise("Leg swings", "10 each direction"),
+        ],
+        .glutes: [
+            WarmupExercise("Glute bridges", "2 × 15 reps"),
+            WarmupExercise("Clamshells", "2 × 10 per side"),
+            WarmupExercise("Band lateral walks", "10 steps per side"),
+        ],
+        .abs: [
+            WarmupExercise("Plank", "2 × 30 seconds"),
+            WarmupExercise("Dead bug", "2 × 10 reps"),
+            WarmupExercise("Cat-cow", "10 reps"),
+        ],
+        .calves: [
+            WarmupExercise("Bodyweight calf raises", "2 × 15 reps"),
+            WarmupExercise("Ankle circles", "10 each direction"),
+        ],
+        .forearms: [
+            WarmupExercise("Wrist circles", "10 each direction"),
+            WarmupExercise("Light grip squeezes", "30 seconds"),
+        ],
+    ]
+
+    /// Build the warmup checklist for a workout that targets `groups`.
+    /// General dynamic warmup is always included; per-muscle activation
+    /// follows for up to `maxActivationSections` groups (preserves order,
+    /// dedupes).
+    static func forMuscleGroups(_ groups: [MuscleGroup]) -> [WarmupSection] {
+        var sections: [WarmupSection] = [
+            WarmupSection(title: "Dynamic warmup · ~5 min", exercises: general)
+        ]
+        var seen = Set<MuscleGroup>()
+        var unique: [MuscleGroup] = []
+        for g in groups where !seen.contains(g) {
+            seen.insert(g)
+            unique.append(g)
+            if unique.count >= maxActivationSections { break }
+        }
+        for group in unique {
+            if let exercises = byMuscleGroup[group] {
+                sections.append(WarmupSection(
+                    title: "Activation · \(group.displayName)",
+                    exercises: exercises
+                ))
+            }
+        }
+        return sections
+    }
+}

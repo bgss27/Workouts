@@ -16,6 +16,13 @@ interface RoutineDao {
     @Query("SELECT * FROM routines ORDER BY name ASC")
     fun getAllRoutines(): Flow<List<RoutineWithExercises>>
 
+    @Query("SELECT COUNT(*) FROM routines")
+    suspend fun getCount(): Int
+
+    /** Names of all routines, used by seedRoutines to skip duplicates. */
+    @Query("SELECT name FROM routines")
+    suspend fun getAllNames(): List<String>
+
     @Transaction
     @Query("SELECT * FROM routines WHERE isPreBuilt = 1 ORDER BY name ASC")
     fun getPreBuiltRoutines(): Flow<List<RoutineWithExercises>>

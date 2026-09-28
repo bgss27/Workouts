@@ -4,6 +4,7 @@ import SwiftData
 @main
 struct FitTrackApp: App {
     @StateObject private var proManager = ProManager()
+    @StateObject private var healthKit = HealthKitService()
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -28,6 +29,7 @@ struct FitTrackApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(proManager)
+                .environmentObject(healthKit)
         }
         .modelContainer(sharedModelContainer)
     }

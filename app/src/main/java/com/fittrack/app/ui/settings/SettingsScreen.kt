@@ -1,5 +1,9 @@
 package com.fittrack.app.ui.settings
 
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,10 +19,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.billing.ProManager
+import com.fittrack.app.data.health.HealthConnectAvailability
+import com.fittrack.app.di.AppModule
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    appModule: AppModule,
     proManager: ProManager,
     onNavigateToUpgrade: () -> Unit,
     onBack: () -> Unit
@@ -31,10 +39,49 @@ fun SettingsScreen(
     val profile by viewModel.profile.collectAsState()
     val isPro by proManager.isPro.collectAsState()
 
+    val healthConnect = appModule.healthConnectService
+    val hcEnabled by healthConnect.enabled.collectAsState()
+    val hcGranted by healthConnect.permissionsGranted.collectAsState()
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) { healthConnect.refreshPermissions() }
+
+    val healthConnectLauncher = rememberLauncherForActivityResult(
+        contract = healthConnect.permissionRequestContract()
+    ) { granted ->
+        scope.launch {
+            healthConnect.refreshPermissions()
+            if (granted.containsAll(healthConnect.permissions)) {
+                healthConnect.setEnabled(true)
+            }
+        }
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    val csvExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val csv = appModule.csvExporter.export()
+            val ok = runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.write(csv.toByteArray(Charsets.UTF_8))
+                }
+            }.isSuccess
+            snackbarHostState.showSnackbar(
+                if (ok) "Workouts exported." else "Export failed.",
+                duration = SnackbarDuration.Short,
+            )
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Settings") })
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -231,17 +278,16 @@ fun SettingsScreen(
                         Text("Weight Unit", style = MaterialTheme.typography.bodyLarge)
                         Text("Used for logging sets", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = profile.weightUnit == "kg",
-                            onClick = { viewModel.updateProfile(profile.copy(weightUnit = "kg")) },
-                            label = { Text("kg") }
-                        )
-                        FilterChip(
-                            selected = profile.weightUnit == "lbs",
-                            onClick = { viewModel.updateProfile(profile.copy(weightUnit = "lbs")) },
-                            label = { Text("lbs") }
-                        )
+                    val units = listOf("kg", "lbs")
+                    SingleChoiceSegmentedButtonRow {
+                        units.forEachIndexed { index, u ->
+                            SegmentedButton(
+                                selected = profile.weightUnit == u,
+                                onClick = { viewModel.updateProfile(profile.copy(weightUnit = u)) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = units.size),
+                                label = { Text(u) }
+                            )
+                        }
                     }
                 }
             }
@@ -293,6 +339,43 @@ fun SettingsScreen(
                 }
             }
 
+            // Integrations
+            if (healthConnect.availability != HealthConnectAvailability.UNSUPPORTED) {
+                item {
+                    Text("Integrations", style = MaterialTheme.typography.titleSmall)
+                }
+                item {
+                    HealthConnectRow(
+                        isPro = isPro,
+                        availability = healthConnect.availability,
+                        granted = hcGranted,
+                        enabled = hcEnabled,
+                        onUpgrade = onNavigateToUpgrade,
+                        onConnect = { healthConnectLauncher.launch(healthConnect.permissions) },
+                        onToggle = { healthConnect.setEnabled(it) },
+                        onInstall = {
+                            val uri = Uri.parse("market://details?id=com.google.android.apps.healthdata")
+                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
+                        },
+                    )
+                }
+            }
+
+            // Data
+            item {
+                Text("Data", style = MaterialTheme.typography.titleSmall)
+            }
+            item {
+                CsvExportRow(
+                    isPro = isPro,
+                    onUpgrade = onNavigateToUpgrade,
+                    onExport = {
+                        val name = "fittrack-workouts-${System.currentTimeMillis()}.csv"
+                        csvExportLauncher.launch(name)
+                    },
+                )
+            }
+
             // App info
             item {
                 Text("About", style = MaterialTheme.typography.titleSmall)
@@ -324,6 +407,97 @@ fun SettingsScreen(
             }
 
             item { Spacer(modifier = Modifier.height(32.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun CsvExportRow(
+    isPro: Boolean,
+    onUpgrade: () -> Unit,
+    onExport: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                Icons.Default.FileDownload,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Export workouts as CSV", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text = if (isPro) "Open in Sheets, Excel, or any spreadsheet app"
+                    else "Pro · Open in Sheets, Excel, or any spreadsheet app",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                )
+            }
+            if (isPro) {
+                Button(onClick = onExport) { Text("Export") }
+            } else {
+                TextButton(onClick = onUpgrade) { Text("Upgrade") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HealthConnectRow(
+    isPro: Boolean,
+    availability: HealthConnectAvailability,
+    granted: Boolean,
+    enabled: Boolean,
+    onUpgrade: () -> Unit,
+    onConnect: () -> Unit,
+    onToggle: (Boolean) -> Unit,
+    onInstall: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                Icons.Default.Sync,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Health Connect", style = MaterialTheme.typography.titleSmall)
+                val subtitle = when {
+                    !isPro -> "Pro · Sync workouts to the system Health store"
+                    availability == HealthConnectAvailability.NOT_INSTALLED ->
+                        "Install Health Connect to enable sync"
+                    !granted -> "Grant access to write workouts"
+                    enabled -> "Connected — finished workouts will sync"
+                    else -> "Connected — sync is paused"
+                }
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                )
+            }
+            when {
+                !isPro -> {
+                    TextButton(onClick = onUpgrade) { Text("Upgrade") }
+                }
+                availability == HealthConnectAvailability.NOT_INSTALLED -> {
+                    TextButton(onClick = onInstall) { Text("Install") }
+                }
+                !granted -> {
+                    Button(onClick = onConnect) { Text("Connect") }
+                }
+                else -> {
+                    Switch(checked = enabled, onCheckedChange = onToggle)
+                }
+            }
         }
     }
 }

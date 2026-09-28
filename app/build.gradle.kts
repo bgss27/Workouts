@@ -40,6 +40,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -79,4 +80,14 @@ dependencies {
 
     // Google Play Billing
     implementation("com.android.billingclient:billing-ktx:7.1.1")
+
+    // Konfetti for the PR celebration animation.
+    implementation("nl.dionsegijn:konfetti-compose:2.0.5")
+
+    // Health Connect — write workouts to the system Health store.
+    // Pinned to alpha10 because the 1.1.0-rc series requires compileSdk 36 +
+    // AGP 8.9.1, and this project is on compileSdk 35 / AGP 8.7.3. The API
+    // surface used by HealthConnectService is stable across this range.
+    // When you next upgrade AGP, bump to the latest 1.1.x release.
+    implementation("androidx.health.connect:connect-client:1.1.0-alpha10")
 }

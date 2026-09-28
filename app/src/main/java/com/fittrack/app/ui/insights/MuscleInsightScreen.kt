@@ -23,6 +23,8 @@ import com.fittrack.app.ui.theme.*
 @Composable
 fun MuscleInsightScreen(
     appModule: AppModule,
+    isPro: Boolean,
+    onUpgrade: () -> Unit,
     onBack: () -> Unit
 ) {
     val viewModel: MuscleInsightViewModel = viewModel(
@@ -52,11 +54,15 @@ fun MuscleInsightScreen(
                 .padding(padding),
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
-            item {
-                MuscleGroupChipRow(
-                    selectedGroup = selectedMuscleGroup,
-                    onGroupSelected = { viewModel.selectMuscleGroup(it) }
-                )
+            // Filter chips: only Pro users can drill into arbitrary muscle groups.
+            // Free preview is fixed to the first muscle group in `allInsights`.
+            if (isPro) {
+                item {
+                    MuscleGroupChipRow(
+                        selectedGroup = selectedMuscleGroup,
+                        onGroupSelected = { viewModel.selectMuscleGroup(it) }
+                    )
+                }
             }
 
             if (isLoading) {
@@ -111,6 +117,10 @@ fun MuscleInsightScreen(
                         ExerciseInsightCard(exInsight)
                     }
                 }
+
+                if (!isPro) {
+                    item { InsightsPaywallFooter(onUpgrade = onUpgrade) }
+                }
             } else if (allInsights.isNotEmpty()) {
                 // Overview of all muscle groups
                 item {
@@ -120,8 +130,23 @@ fun MuscleInsightScreen(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
-                items(allInsights) { insight ->
-                    OverviewCard(insight) { viewModel.selectMuscleGroup(insight.muscleGroup) }
+                if (isPro) {
+                    items(allInsights) { insight ->
+                        OverviewCard(insight) { viewModel.selectMuscleGroup(insight.muscleGroup) }
+                    }
+                } else {
+                    val preview = allInsights.first()
+                    item {
+                        OverviewCard(preview) { viewModel.selectMuscleGroup(preview.muscleGroup) }
+                    }
+                    if (allInsights.size > 1) {
+                        item {
+                            InsightsPaywallTeaser(
+                                lockedGroupNames = allInsights.drop(1).map { it.muscleGroup.displayName },
+                                onUpgrade = onUpgrade
+                            )
+                        }
+                    }
                 }
             } else {
                 item {
@@ -131,6 +156,95 @@ fun MuscleInsightScreen(
                         subtitle = "Complete a few workouts to get ML-powered insights on your training"
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InsightsPaywallTeaser(
+    lockedGroupNames: List<String>,
+    onUpgrade: () -> Unit
+) {
+    val displayNames = lockedGroupNames.take(4).joinToString(", ") +
+        if (lockedGroupNames.size > 4) ", and ${lockedGroupNames.size - 4} more" else ""
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    "${lockedGroupNames.size} more insights with Pro",
+                    style = MaterialTheme.typography.titleSmall
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Unlock plateau detection, frequency analysis, and personalized recommendations for $displayNames.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(onClick = onUpgrade) {
+                Icon(
+                    Icons.Default.Star,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Unlock with Pro")
+            }
+        }
+    }
+}
+
+@Composable
+private fun InsightsPaywallFooter(onUpgrade: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "Like this preview?",
+                style = MaterialTheme.typography.titleSmall
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Unlock insights for every muscle group with Pro.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(onClick = onUpgrade) {
+                Icon(
+                    Icons.Default.Star,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Upgrade to Pro")
             }
         }
     }
@@ -181,19 +295,20 @@ private fun ScoreCard(insight: MuscleInsight) {
             }
             if (insight.isPlateaued) {
                 Spacer(modifier = Modifier.height(8.dp))
+                val warning = FitTrackTheme.colors.warning
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Orange.copy(alpha = 0.15f))
+                    colors = CardDefaults.cardColors(containerColor = warning.copy(alpha = 0.15f))
                 ) {
                     Row(
                         modifier = Modifier.padding(8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.TrendingFlat, contentDescription = null, tint = Orange, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.TrendingFlat, contentDescription = null, tint = warning, modifier = Modifier.size(18.dp))
                         Text(
                             "Plateau detected (${insight.plateauDurationSessions} sessions)",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Orange
+                            color = warning
                         )
                     }
                 }
@@ -316,15 +431,16 @@ private fun RecoveryCard(insight: MuscleInsight) {
 
 @Composable
 private fun RecommendationCard(rec: MlRecommendation) {
+    val semantic = FitTrackTheme.colors
     val (icon, color) = when (rec.type) {
-        RecommendationType.INCREASE_WEIGHT -> Icons.Default.TrendingUp to Green
+        RecommendationType.INCREASE_WEIGHT -> Icons.Default.TrendingUp to semantic.success
         RecommendationType.INCREASE_VOLUME -> Icons.Default.Add to Blue40
         RecommendationType.INCREASE_FREQUENCY -> Icons.Default.Repeat to Blue40
-        RecommendationType.DELOAD -> Icons.Default.TrendingDown to Orange
+        RecommendationType.DELOAD -> Icons.Default.TrendingDown to semantic.warning
         RecommendationType.CHANGE_EXERCISE -> Icons.Default.SwapHoriz to Teal40
         RecommendationType.PERIODIZATION_SHIFT -> Icons.Default.Autorenew to Blue40
-        RecommendationType.MUSCLE_BALANCE -> Icons.Default.Balance to Orange
-        RecommendationType.RECOVERY -> Icons.Default.Hotel to Red
+        RecommendationType.MUSCLE_BALANCE -> Icons.Default.Balance to semantic.warning
+        RecommendationType.RECOVERY -> Icons.Default.Hotel to semantic.danger
     }
 
     Card(
@@ -400,14 +516,14 @@ private fun ExerciseInsightCard(insight: ExerciseInsight) {
                 Text(
                     "Predicted next: ${String.format("%.1f", insight.predicted1RMNextSession)}kg (${(insight.rSquared * 100).toInt()}% confidence)",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Green
+                    color = FitTrackTheme.colors.success
                 )
             }
             if (insight.isPlateaued) {
                 Text(
                     "Plateaued - consider changing variation",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Orange
+                    color = FitTrackTheme.colors.warning
                 )
             }
             Text(
@@ -446,7 +562,7 @@ private fun OverviewCard(insight: MuscleInsight, onClick: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                     if (insight.isPlateaued) {
-                        Text("Plateaued", style = MaterialTheme.typography.labelSmall, color = Orange)
+                        Text("Plateaued", style = MaterialTheme.typography.labelSmall, color = FitTrackTheme.colors.warning)
                     }
                 }
                 if (insight.recommendations.isNotEmpty()) {
@@ -470,25 +586,34 @@ private fun OverviewCard(insight: MuscleInsight, onClick: () -> Unit) {
 }
 
 @Composable
-private fun trendColor(trend: TrendDirection): Color = when (trend) {
-    TrendDirection.IMPROVING -> Green
-    TrendDirection.SLIGHTLY_IMPROVING -> Green.copy(alpha = 0.7f)
-    TrendDirection.FLAT, TrendDirection.NO_CLEAR_TREND -> Orange
-    TrendDirection.SLIGHTLY_DECLINING -> Red.copy(alpha = 0.7f)
-    TrendDirection.DECLINING -> Red
-    TrendDirection.INSUFFICIENT_DATA -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+private fun trendColor(trend: TrendDirection): Color {
+    val c = FitTrackTheme.colors
+    return when (trend) {
+        TrendDirection.IMPROVING -> c.success
+        TrendDirection.SLIGHTLY_IMPROVING -> c.success.copy(alpha = 0.7f)
+        TrendDirection.FLAT, TrendDirection.NO_CLEAR_TREND -> c.warning
+        TrendDirection.SLIGHTLY_DECLINING -> c.danger.copy(alpha = 0.7f)
+        TrendDirection.DECLINING -> c.danger
+        TrendDirection.INSUFFICIENT_DATA -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+    }
 }
 
 @Composable
-private fun scoreColor(score: Double): Color = when {
-    score >= 70 -> Green
-    score >= 40 -> Orange
-    else -> Red
+private fun scoreColor(score: Double): Color {
+    val c = FitTrackTheme.colors
+    return when {
+        score >= 70 -> c.success
+        score >= 40 -> c.warning
+        else -> c.danger
+    }
 }
 
 @Composable
-private fun fatigueColor(fatigue: Double): Color = when {
-    fatigue < 25 -> Green
-    fatigue < 50 -> Orange
-    else -> Red
+private fun fatigueColor(fatigue: Double): Color {
+    val c = FitTrackTheme.colors
+    return when {
+        fatigue < 25 -> c.success
+        fatigue < 50 -> c.warning
+        else -> c.danger
+    }
 }

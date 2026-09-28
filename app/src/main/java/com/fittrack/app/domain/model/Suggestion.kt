@@ -31,11 +31,27 @@ sealed class Suggestion {
 
     data class IncreaseFrequency(
         val muscleGroup: MuscleGroup,
-        val currentFreqPerWeek: Int,
-        val suggestedFreqPerWeek: Int
+        /** Days the user actually trained this muscle group in the last 4 weeks. */
+        val sessionsLast4Weeks: Int,
+        /** Per-week target from the user's plan (or 2x default if no plan). */
+        val suggestedFreqPerWeek: Int,
     ) : Suggestion() {
+        /** Number of sessions the plan calls for over the same 4-week window. */
+        private val expectedLast4Weeks: Int get() = suggestedFreqPerWeek * 4
+        // Back-compat alias for any caller still on the old field name. Rounds
+        // up so non-zero sessions don't render as "0x/week".
+        val currentFreqPerWeek: Int
+            get() = if (sessionsLast4Weeks == 0) 0
+            else ((sessionsLast4Weeks + 3) / 4).coerceAtLeast(1)
         override val title = "Train ${muscleGroup.displayName} More Often"
-        override val description = "You're only training ${muscleGroup.displayName} ${currentFreqPerWeek}x/week. Try increasing to ${suggestedFreqPerWeek}x for better results."
+        override val description = run {
+            val group = muscleGroup.displayName
+            if (sessionsLast4Weeks == 0) {
+                "You haven't trained $group in the last 4 weeks. Your plan calls for ${suggestedFreqPerWeek}x/week."
+            } else {
+                "You've trained $group $sessionsLast4Weeks ${if (sessionsLast4Weeks == 1) "time" else "times"} in the last 4 weeks. Your plan calls for ${suggestedFreqPerWeek}x/week ($expectedLast4Weeks sessions)."
+            }
+        }
         override val priority = 3
     }
 

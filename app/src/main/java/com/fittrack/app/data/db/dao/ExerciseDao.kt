@@ -13,8 +13,31 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercises ORDER BY name ASC")
     fun getAllExercises(): Flow<List<Exercise>>
 
+    @Query("SELECT COUNT(*) FROM exercises")
+    suspend fun getCount(): Int
+
     @Query("SELECT * FROM exercises WHERE muscleGroup = :group ORDER BY name ASC")
     fun getByMuscleGroup(group: MuscleGroup): Flow<List<Exercise>>
+
+    /**
+     * Exercises that train [group] (as primary OR secondary muscle) and use
+     * one of the [equipmentNames] the user has on hand. Names are passed as
+     * uppercase strings to match the [Equipment] enum's name() representation.
+     */
+    @Query(
+        """
+        SELECT * FROM exercises
+        WHERE (muscleGroup = :group OR secondaryMuscleGroup = :group)
+          AND equipment IN (:equipmentNames)
+        ORDER BY
+          CASE WHEN muscleGroup = :group THEN 0 ELSE 1 END,
+          name ASC
+        """
+    )
+    suspend fun getByMuscleGroupAndEquipment(
+        group: MuscleGroup,
+        equipmentNames: List<String>,
+    ): List<Exercise>
 
     @Query("SELECT * FROM exercises WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
     fun searchByName(query: String): Flow<List<Exercise>>

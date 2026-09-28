@@ -56,6 +56,16 @@ class UserPlanRepository(
         userPlanDao.removeByRoutineId(routineId)
     }
 
+    /**
+     * Repoint a single plan day at a different routine, keeping its slot and
+     * dayOrder. Used by suggestion-driven schedule changes that swap one day
+     * (e.g. "convert your Tuesday push day to a back day") without growing
+     * the plan.
+     */
+    suspend fun replacePlanRoutine(planId: Long, newRoutineId: Long) {
+        userPlanDao.updateRoutine(planId, newRoutineId)
+    }
+
     suspend fun removeProgramFromPlan(programName: String) {
         userPlanDao.removeByProgram(programName)
     }

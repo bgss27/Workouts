@@ -17,19 +17,19 @@ struct ContentView: View {
 
             MyPlanView()
                 .tabItem {
-                    Label("My Plan", systemImage: "calendar")
+                    Label("My Plan", systemImage: "list.clipboard")
                 }
                 .tag(1)
+
+            CalendarView()
+                .tabItem {
+                    Label("Calendar", systemImage: "calendar")
+                }
+                .tag(2)
 
             ExercisesView()
                 .tabItem {
                     Label("Exercises", systemImage: "dumbbell.fill")
-                }
-                .tag(2)
-
-            InsightsView()
-                .tabItem {
-                    Label("Insights", systemImage: "brain.head.profile")
                 }
                 .tag(3)
 
@@ -38,6 +38,8 @@ struct ContentView: View {
                     Label("Settings", systemImage: "gearshape.fill")
                 }
                 .tag(4)
+            // Insights stays reachable from Home quickActions; not a tab now
+            // since Calendar took its slot in the bottom nav (matches Android).
         }
         .onAppear {
             if !hasSeeded {

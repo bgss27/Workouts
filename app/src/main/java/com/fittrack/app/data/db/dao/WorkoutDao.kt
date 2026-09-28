@@ -39,6 +39,40 @@ interface WorkoutDao {
     @Query("SELECT COUNT(*) FROM workouts WHERE endTime IS NOT NULL")
     fun getCompletedWorkoutCount(): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM workouts WHERE endTime IS NOT NULL AND startTime >= :sinceMs")
+    fun getCompletedWorkoutCountSince(sinceMs: Long): Flow<Int>
+
+    /**
+     * Lifetime total volume in kg across all completed working sets. Warmups
+     * are excluded so the number tracks actual training load.
+     */
+    @Query(
+        """
+        SELECT COALESCE(SUM(s.weightKg * s.reps), 0)
+        FROM workout_sets s
+        JOIN workout_exercises we ON we.id = s.workoutExerciseId
+        JOIN workouts w ON w.id = we.workoutId
+        WHERE w.endTime IS NOT NULL AND s.isWarmup = 0
+        """
+    )
+    fun getTotalVolumeKg(): Flow<Double>
+
     @Query("DELETE FROM workouts WHERE id = :id")
     suspend fun delete(id: Long)
+
+    /**
+     * Finish a workout by id rather than via getActiveWorkout(). Targeting by id
+     * is the right primitive — if the user opened an earlier workout and never
+     * tapped Finish/Discard, that orphan would otherwise mask this one.
+     */
+    @Query("UPDATE workouts SET endTime = :endTime, notes = :notes WHERE id = :id")
+    suspend fun finishWorkoutById(id: Long, endTime: Long, notes: String?)
+
+    /**
+     * Wipe out any in-progress workouts (rows with no endTime). Called at the
+     * start of a new workout to clean up orphans left by force-quit /
+     * system-back exits.
+     */
+    @Query("DELETE FROM workouts WHERE endTime IS NULL")
+    suspend fun deleteStaleActiveWorkouts(): Int
 }

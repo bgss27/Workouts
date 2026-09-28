@@ -10,7 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.fittrack.app.billing.ProFeature
+import com.fittrack.app.billing.FeatureGate
 import com.fittrack.app.billing.ProManager
 
 /**
@@ -20,7 +20,7 @@ import com.fittrack.app.billing.ProManager
 @Composable
 fun ProGate(
     proManager: ProManager,
-    feature: ProFeature,
+    feature: FeatureGate,
     onUpgradeClick: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
@@ -40,7 +40,7 @@ fun ProGate(
 
 @Composable
 fun ProLockedOverlay(
-    feature: ProFeature,
+    feature: FeatureGate,
     onUpgradeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {

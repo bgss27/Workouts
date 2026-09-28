@@ -32,6 +32,9 @@ interface UserPlanDao {
     @Query("DELETE FROM user_plan WHERE routineId = :routineId")
     suspend fun removeByRoutineId(routineId: Long)
 
+    @Query("UPDATE user_plan SET routineId = :routineId WHERE id = :planId")
+    suspend fun updateRoutine(planId: Long, routineId: Long)
+
     @Query("DELETE FROM user_plan WHERE programName = :programName")
     suspend fun removeByProgram(programName: String)
 

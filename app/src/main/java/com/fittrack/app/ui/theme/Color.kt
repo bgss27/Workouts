@@ -10,7 +10,13 @@ val Blue40 = Color(0xFF3F5AA6)
 val BlueGrey40 = Color(0xFF4A5568)
 val Teal40 = Color(0xFF2B8A94)
 
-val Green = Color(0xFF4CAF50)
-val Orange = Color(0xFFFF9800)
-val Red = Color(0xFFF44336)
-val Yellow = Color(0xFFFFEB3B)
+// Semantic accent colors — accessed via FitTrackTheme.colors, not directly.
+// Light variants are darker for contrast on white; dark variants are lighter
+// so they don't burn out on a dark surface.
+val SuccessLight = Color(0xFF2E7D32)
+val WarningLight = Color(0xFFED6C02)
+val DangerLight = Color(0xFFD32F2F)
+
+val SuccessDark = Color(0xFF66BB6A)
+val WarningDark = Color(0xFFFFA726)
+val DangerDark = Color(0xFFEF5350)

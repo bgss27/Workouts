@@ -8,8 +8,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.fittrack.app.data.WeightUnits
 import com.fittrack.app.data.entity.WorkoutExercise
 import com.fittrack.app.data.entity.WorkoutSet
 import com.fittrack.app.di.AppModule
@@ -30,6 +32,8 @@ fun WorkoutDetailScreen(
     val workout by viewModel.workout.collectAsState()
     val exerciseDetails by viewModel.exerciseDetails.collectAsState()
     val dateFormat = SimpleDateFormat("EEEE, MMM d, yyyy 'at' HH:mm", Locale.getDefault())
+    val context = LocalContext.current
+    val unit = remember { WeightUnits.preferred(context) }
 
     Scaffold(
         topBar = {
@@ -98,7 +102,7 @@ fun WorkoutDetailScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text("Set", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
-                            Text("Weight", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
+                            Text("Weight ($unit)", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
                             Text("Reps", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
                         }
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -118,7 +122,7 @@ fun WorkoutDetailScreen(
                                     else MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "${set.weightKg} kg",
+                                    text = WeightUnits.format(set.weightKg, unit),
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.weight(1f)
                                 )
@@ -130,13 +134,13 @@ fun WorkoutDetailScreen(
                             }
                         }
 
-                        // Volume summary
+                        // Volume summary — convert the kg-based total once.
                         val workingSets = detail.sets.filter { !it.isWarmup }
                         if (workingSets.isNotEmpty()) {
                             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                            val totalVolume = workingSets.sumOf { it.weightKg * it.reps }
+                            val totalVolumeKg = workingSets.sumOf { it.weightKg * it.reps }
                             Text(
-                                text = "Total volume: ${"%.1f".format(totalVolume)} kg",
+                                text = "Total volume: ${WeightUnits.format(totalVolumeKg, unit)}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary
                             )

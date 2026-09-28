@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Health Connect requires every app that requests health permissions to
+    enumerate them here. The OS uses this to show the right permission
+    surface and to validate grant requests on Android 14+.
+    Keep this in sync with the <uses-permission> declarations in the manifest.
+-->
+<resources>
+    <array name="health_permissions">
+        <item>android.permission.health.WRITE_EXERCISE</item>
+    </array>
+</resources>

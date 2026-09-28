@@ -30,5 +30,12 @@ data class WorkoutExercise(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val workoutId: Long,
     val exerciseId: Long,
-    val orderIndex: Int
+    val orderIndex: Int,
+    /**
+     * Identifies a superset group within this workout. All workout-exercises
+     * sharing the same non-null value are performed back-to-back as a single
+     * superset. Null = standalone (default). Group IDs are arbitrary — by
+     * convention we use the [id] of the first member of the group.
+     */
+    val supersetGroup: Long? = null,
 )
