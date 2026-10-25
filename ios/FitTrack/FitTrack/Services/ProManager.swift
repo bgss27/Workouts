@@ -261,6 +261,17 @@ extension ProManager {
 
 // MARK: - HealthKit (iOS sibling of Android HealthConnectService)
 
+/// Step counts read from HealthKit. `daily` is the last seven calendar days
+/// oldest-first, ending with today.
+struct StepsSummary: Equatable {
+    let today: Int
+    let daily: [Int]
+
+    var weeklyAverage: Int {
+        daily.isEmpty ? 0 : daily.reduce(0, +) / daily.count
+    }
+}
+
 /// Whether HealthKit can be reached. On iOS this is essentially always
 /// available on iPhone; iPad sometimes reports unavailable.
 @MainActor
@@ -280,8 +291,19 @@ final class HealthKitService: ObservableObject {
 
     private let store = HKHealthStore()
     private let workoutType: HKSampleType = HKObjectType.workoutType()
+    private let stepType = HKQuantityType(.stepCount)
 
     private static let enabledKey = "fittrack_healthkit_enabled"
+
+    // MARK: Steps (iOS sibling of the Android Home step tracker)
+
+    /// Latest step counts; nil until read or when the user hasn't been asked.
+    @Published private(set) var stepsSummary: StepsSummary?
+
+    /// HealthKit never reveals whether a *read* permission was granted (denied
+    /// reads just return no data), but it does tell us whether we still need
+    /// to show the prompt. True until the user has answered it once.
+    @Published private(set) var stepsPromptNeeded: Bool = true
 
     init() {
         self.isEnabled = UserDefaults.standard.bool(forKey: Self.enabledKey)
@@ -320,6 +342,72 @@ final class HealthKitService: ObservableObject {
 
     func setEnabled(_ value: Bool) {
         isEnabled = value
+    }
+
+    /// Ask for read access to step count only; workout sync is separate.
+    func requestStepsAuthorization() async {
+        guard isAvailable else { return }
+        do {
+            try await store.requestAuthorization(toShare: [], read: [stepType])
+        } catch {
+            print("HealthKitService: steps auth failed — \(error)")
+        }
+        await refreshSteps()
+    }
+
+    /// Re-check whether the prompt is still needed and reload today's steps
+    /// plus the last seven days. Cheap; call whenever Home appears.
+    func refreshSteps() async {
+        guard isAvailable else { return }
+        stepsPromptNeeded = await needsStepsPrompt()
+        if stepsPromptNeeded {
+            stepsSummary = nil
+            return
+        }
+        stepsSummary = await readSteps()
+    }
+
+    private func needsStepsPrompt() async -> Bool {
+        await withCheckedContinuation { cont in
+            store.getRequestStatusForAuthorization(toShare: [], read: [stepType]) { status, _ in
+                cont.resume(returning: status == .shouldRequest)
+            }
+        }
+    }
+
+    /// Daily step totals for the last seven calendar days, oldest first,
+    /// ending with today. HealthKit merges phone and watch sources itself.
+    private func readSteps() async -> StepsSummary? {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        guard let start = cal.date(byAdding: .day, value: -6, to: today) else { return nil }
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: Date(), options: .strictStartDate)
+
+        return await withCheckedContinuation { cont in
+            let query = HKStatisticsCollectionQuery(
+                quantityType: stepType,
+                quantitySamplePredicate: predicate,
+                options: .cumulativeSum,
+                anchorDate: today,
+                intervalComponents: DateComponents(day: 1)
+            )
+            query.initialResultsHandler = { _, collection, _ in
+                guard let collection else {
+                    cont.resume(returning: nil)
+                    return
+                }
+                var daily: [Int] = []
+                collection.enumerateStatistics(from: start, to: Date()) { stats, _ in
+                    let count = stats.sumQuantity()?.doubleValue(for: .count()) ?? 0
+                    daily.append(Int(count))
+                }
+                // Pad in case HealthKit skipped empty leading days.
+                while daily.count < 7 { daily.insert(0, at: 0) }
+                let last7 = Array(daily.suffix(7))
+                cont.resume(returning: StepsSummary(today: last7.last ?? 0, daily: last7))
+            }
+            store.execute(query)
+        }
     }
 
     /// Write a finished strength-training session to Apple Health.

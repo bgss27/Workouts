@@ -545,7 +545,7 @@
 				INFOPLIST_FILE = FitTrack/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FitTrack;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "FitTrack does not currently read from Apple Health. This permission is reserved for future features.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "FitTrack reads your daily step count from Apple Health to show it on the Home screen.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "FitTrack writes your finished strength-training workouts to Apple Health when sync is enabled in Settings.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -581,7 +581,7 @@
 				INFOPLIST_FILE = FitTrack/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FitTrack;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "FitTrack does not currently read from Apple Health. This permission is reserved for future features.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "FitTrack reads your daily step count from Apple Health to show it on the Home screen.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "FitTrack writes your finished strength-training workouts to Apple Health when sync is enabled in Settings.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;

@@ -4,6 +4,7 @@ import Charts
 
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var healthKit: HealthKitService
     @EnvironmentObject var proManager: ProManager
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
     @Query private var userPlans: [UserPlan]
@@ -69,6 +70,15 @@ struct HomeView: View {
                     // Stats
                     statsCard
 
+                    // Steps (Apple Health)
+                    if healthKit.isAvailable {
+                        StepsCard(
+                            summary: healthKit.stepsSummary,
+                            promptNeeded: healthKit.stepsPromptNeeded,
+                            onConnect: { Task { await healthKit.requestStepsAuthorization() } }
+                        )
+                    }
+
                     // Quick actions
                     quickActions
 
@@ -103,6 +113,7 @@ struct HomeView: View {
                 .padding()
             }
             .navigationTitle("FitTrack")
+            .task { await healthKit.refreshSteps() }
             .sheet(isPresented: $showHomeWorkoutSheet) {
                 HomeWorkoutSheet(defaultGroup: suggestedHomeMuscleGroup) { exercises in
                     pendingHomeExercises = exercises
@@ -389,6 +400,79 @@ struct HomeView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Steps card (Apple Health)
+
+/// Daily step count. Before the user has answered the HealthKit prompt it
+/// shows a one-tap Connect; afterwards today's total, the 7-day average and
+/// a small bar strip of the last week. Mirrors the Android `StepsTile`.
+private struct StepsCard: View {
+    let summary: StepsSummary?
+    let promptNeeded: Bool
+    let onConnect: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: "figure.walk")
+                    .font(.title3)
+                    .foregroundColor(.blue)
+                    .frame(width: 40, height: 40)
+                    .background(Color.blue.opacity(0.15))
+                    .cornerRadius(12)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Steps").font(.subheadline.bold())
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                if promptNeeded {
+                    Button("Connect", action: onConnect)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                }
+            }
+            if !promptNeeded, let summary {
+                HStack(alignment: .bottom) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(summary.today.formatted())
+                            .font(.title.bold())
+                            .lineLimit(1)
+                        Text("TODAY")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    weekBars(summary.daily)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
+    }
+
+    private var subtitle: String {
+        if promptNeeded { return "Connect Apple Health to see your daily steps" }
+        guard let summary else { return "Reading from Apple Health…" }
+        return "7-day average \(summary.weeklyAverage.formatted())"
+    }
+
+    /// Last seven days as thin bars; today is the rightmost, in the accent.
+    private func weekBars(_ daily: [Int]) -> some View {
+        let maxValue = max(daily.max() ?? 0, 1)
+        return HStack(alignment: .bottom, spacing: 4) {
+            ForEach(Array(daily.enumerated()), id: \.offset) { index, value in
+                let fraction = max(CGFloat(value) / CGFloat(maxValue), 0.08)
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(index == daily.count - 1 ? Color.accentColor : Color.secondary.opacity(0.3))
+                    .frame(width: 10, height: 40 * fraction)
+            }
+        }
+        .frame(height: 40, alignment: .bottom)
     }
 }
 
