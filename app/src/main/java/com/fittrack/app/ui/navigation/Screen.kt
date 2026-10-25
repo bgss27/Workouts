@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShowChart
@@ -55,6 +56,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
             "log_past_workout?dateMillis=${dateMillis ?: -1L}"
     }
     data object MlInsights : Screen("ml_insights", "Insights", Icons.Default.Psychology)
+    data object BodyMetrics : Screen("body_metrics", "Body Metrics", Icons.Default.MonitorWeight)
     data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
     data object Upgrade : Screen("upgrade", "Upgrade")
 

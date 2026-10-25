@@ -41,6 +41,7 @@ fun HomeScreen(
     onViewMyPlan: () -> Unit,
     onStartRoutine: (Long) -> Unit,
     onViewMlInsights: () -> Unit,
+    onViewBodyMetrics: () -> Unit,
     onUpgrade: () -> Unit,
     onStartHomeWorkout: (List<Long>) -> Unit,
 ) {
@@ -99,6 +100,9 @@ fun HomeScreen(
                     }
                     IconButton(onClick = onViewMlInsights) {
                         Icon(Icons.Default.Psychology, contentDescription = "Insights")
+                    }
+                    IconButton(onClick = onViewBodyMetrics) {
+                        Icon(Icons.Default.MonitorWeight, contentDescription = "Body Metrics")
                     }
                     IconButton(onClick = onViewHistory) {
                         Icon(Icons.Default.History, contentDescription = "History")

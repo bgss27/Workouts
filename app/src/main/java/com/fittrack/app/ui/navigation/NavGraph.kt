@@ -10,6 +10,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.fittrack.app.billing.ProManager
 import com.fittrack.app.di.AppModule
+import com.fittrack.app.ui.bodymetrics.BodyMetricsScreen
 import com.fittrack.app.ui.calendar.CalendarScreen
 import com.fittrack.app.ui.workout.LogPastWorkoutScreen
 import com.fittrack.app.ui.home.HomeScreen
@@ -47,6 +48,7 @@ fun NavGraph(
                     navController.navigate(Screen.ActiveWorkout.createRoute(routineId))
                 },
                 onViewMlInsights = { navController.navigate(Screen.MlInsights.route) },
+                onViewBodyMetrics = { navController.navigate(Screen.BodyMetrics.route) },
                 onUpgrade = { navController.navigate(Screen.Upgrade.route) },
                 onStartHomeWorkout = { ids ->
                     navController.navigate(Screen.ActiveWorkout.createRouteWithExercises(ids))
@@ -201,6 +203,17 @@ fun NavGraph(
                 appModule = appModule,
                 proManager = proManager,
                 onNavigateToUpgrade = { navController.navigate(Screen.Upgrade.route) },
+                onNavigateToBodyMetrics = { navController.navigate(Screen.BodyMetrics.route) },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.BodyMetrics.route) {
+            val isPro by proManager.isPro.collectAsState()
+            BodyMetricsScreen(
+                appModule = appModule,
+                isPro = isPro,
+                onUpgrade = { navController.navigate(Screen.Upgrade.route) },
                 onBack = { navController.popBackStack() }
             )
         }

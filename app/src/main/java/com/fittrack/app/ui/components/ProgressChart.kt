@@ -18,6 +18,18 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.fittrack.app.domain.model.ProgressDataPoint
 
+/** Which summary row a [LineTrendChart] shows under the line. */
+enum class TrendStats {
+    /** Current / Best / % change — for lifts, where higher is better. */
+    PROGRESS,
+    /** Start / Current / absolute change — for body metrics, where "best" has no meaning. */
+    CHANGE,
+}
+
+/**
+ * Exercise-progress chart. Thin wrapper over [LineTrendChart] that keeps the
+ * original [ProgressDataPoint]-typed call sites unchanged.
+ */
 @Composable
 fun ProgressChart(
     dataPoints: List<ProgressDataPoint>,
@@ -27,6 +39,29 @@ fun ProgressChart(
     lineColor: Color = MaterialTheme.colorScheme.primary
 ) {
     if (dataPoints.isEmpty()) return
+    LineTrendChart(
+        values = dataPoints.map { valueSelector(it) },
+        label = label,
+        modifier = modifier,
+        lineColor = lineColor,
+        stats = TrendStats.PROGRESS,
+    )
+}
+
+/**
+ * Generic animated line chart over an ordered list of values (oldest first).
+ * Used for lift progress and body-metric trends alike.
+ */
+@Composable
+fun LineTrendChart(
+    values: List<Double>,
+    label: String,
+    modifier: Modifier = Modifier,
+    lineColor: Color = MaterialTheme.colorScheme.primary,
+    stats: TrendStats = TrendStats.PROGRESS,
+    formatValue: (Double) -> String = { "%.1f".format(it) },
+) {
+    if (values.isEmpty()) return
 
     Column(modifier = modifier.padding(16.dp)) {
         Text(
@@ -35,7 +70,6 @@ fun ProgressChart(
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        val values = dataPoints.map { valueSelector(it) }
         val minValue = values.minOrNull() ?: 0.0
         val maxValue = values.maxOrNull() ?: 1.0
         val range = if (maxValue - minValue == 0.0) 1.0 else maxValue - minValue
@@ -45,12 +79,12 @@ fun ProgressChart(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "%.1f".format(maxValue),
+                text = formatValue(maxValue),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
             Text(
-                text = "%.1f".format(minValue),
+                text = formatValue(minValue),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
@@ -58,7 +92,7 @@ fun ProgressChart(
 
         // Animate the line drawing on first composition. The Animatable goes
         // from 0f → 1f and we clip the path to the first `progress * length`.
-        // Re-keyed on values so swapping the selected exercise replays the
+        // Re-keyed on values so swapping the selected series replays the
         // animation with the new data.
         val progress = remember(values) { Animatable(0f) }
         LaunchedEffect(values) {
@@ -133,11 +167,21 @@ fun ProgressChart(
         ) {
             val latest = values.lastOrNull() ?: 0.0
             val first = values.firstOrNull() ?: 0.0
-            val change = if (first > 0) ((latest - first) / first * 100) else 0.0
-
-            StatItem("Current", "%.1f".format(latest))
-            StatItem("Best", "%.1f".format(values.maxOrNull() ?: 0.0))
-            StatItem("Change", "%+.1f%%".format(change))
+            when (stats) {
+                TrendStats.PROGRESS -> {
+                    val change = if (first > 0) ((latest - first) / first * 100) else 0.0
+                    StatItem("Current", formatValue(latest))
+                    StatItem("Best", formatValue(values.maxOrNull() ?: 0.0))
+                    StatItem("Change", "%+.1f%%".format(change))
+                }
+                TrendStats.CHANGE -> {
+                    val delta = latest - first
+                    val sign = if (delta > 0) "+" else ""
+                    StatItem("Start", formatValue(first))
+                    StatItem("Current", formatValue(latest))
+                    StatItem("Change", sign + formatValue(delta))
+                }
+            }
         }
     }
 }

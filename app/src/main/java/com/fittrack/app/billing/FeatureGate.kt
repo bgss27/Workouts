@@ -31,10 +31,10 @@ enum class FeatureGate(val displayName: String, val description: String) {
         "View workouts and progress charts beyond the last 30 days"
     ),
 
-    /** Track body weight, measurements, and progress photos. */
+    /** Track body weight, body fat, and tape measurements over time. */
     BODY_METRICS(
         "Body Metrics",
-        "Log body weight, measurements, and progress photos"
+        "Log body weight, body fat, and measurements, and track trends over time"
     ),
 
     /** CSV / data portability. */

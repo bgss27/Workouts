@@ -4,6 +4,7 @@ import android.content.Context
 import com.fittrack.app.data.db.FitTrackDatabase
 import com.fittrack.app.data.export.CsvExporter
 import com.fittrack.app.data.health.HealthConnectService
+import com.fittrack.app.data.repository.BodyMetricRepository
 import com.fittrack.app.data.repository.ExerciseRepository
 import com.fittrack.app.data.repository.RoutineRepository
 import com.fittrack.app.data.repository.UserPlanRepository
@@ -19,6 +20,7 @@ class AppModule(context: Context) {
     val exerciseRepository = ExerciseRepository(database.exerciseDao())
     val routineRepository = RoutineRepository(database.routineDao())
     val userPlanRepository = UserPlanRepository(database.userPlanDao(), database.routineDao())
+    val bodyMetricRepository = BodyMetricRepository(database.bodyMetricDao())
 
     val progressAnalyzer = ProgressAnalyzer(
         workoutRepository,

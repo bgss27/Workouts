@@ -29,6 +29,7 @@ fun SettingsScreen(
     appModule: AppModule,
     proManager: ProManager,
     onNavigateToUpgrade: () -> Unit,
+    onNavigateToBodyMetrics: () -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -170,6 +171,45 @@ fun SettingsScreen(
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
+                }
+            }
+
+            // Body metrics (Pro) — the weight field above is a one-off
+            // profile value; this is the dated history with trends.
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToBodyMetrics() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(Icons.Default.MonitorWeight, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Body Metrics", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                text = "Weight, body fat, and measurements over time",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                        if (!isPro) {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = "Pro feature",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                    }
                 }
             }
 

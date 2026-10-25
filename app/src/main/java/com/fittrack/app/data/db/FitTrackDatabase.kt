@@ -7,6 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.fittrack.app.data.db.dao.BodyMetricDao
 import com.fittrack.app.data.db.dao.ExerciseDao
 import com.fittrack.app.data.db.dao.RoutineDao
 import com.fittrack.app.data.db.dao.UserPlanDao
@@ -163,9 +164,10 @@ internal val SEED_EXERCISES: List<Exercise> = listOf(
         WorkoutSet::class,
         Routine::class,
         RoutineExercise::class,
-        UserPlan::class
+        UserPlan::class,
+        BodyMetric::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -175,6 +177,7 @@ abstract class FitTrackDatabase : RoomDatabase() {
     abstract fun workoutSetDao(): WorkoutSetDao
     abstract fun routineDao(): RoutineDao
     abstract fun userPlanDao(): UserPlanDao
+    abstract fun bodyMetricDao(): BodyMetricDao
 
     companion object {
         @Volatile
@@ -303,6 +306,36 @@ abstract class FitTrackDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v7 → v8: add the `body_metrics` table (Pro body-metrics tracking).
+         * Purely additive; no existing rows are touched. Column types must
+         * match the Room-generated schema for [BodyMetric] exactly or Room
+         * will fail validation on open.
+         */
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS body_metrics (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        recordedAt INTEGER NOT NULL,
+                        weightKg REAL,
+                        bodyFatPercent REAL,
+                        waistCm REAL,
+                        chestCm REAL,
+                        hipsCm REAL,
+                        armCm REAL,
+                        thighCm REAL,
+                        notes TEXT
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_body_metrics_recordedAt ON body_metrics (recordedAt)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): FitTrackDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -310,7 +343,7 @@ abstract class FitTrackDatabase : RoomDatabase() {
                     FitTrackDatabase::class.java,
                     "fittrack_database"
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                     // Kept as a development-time safety net only. Each new schema
                     // version MUST register a real migration above; relying on the
                     // fallback in production wipes user data silently.

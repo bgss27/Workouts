@@ -2,7 +2,7 @@
 
 Tracks features shipped on Android but not yet on iOS. Work through this list when prioritising iOS catch-up work.
 
-Last updated: 2026-05-20 (post first iOS catch-up batch)
+Last updated: 2026-10-25 (Android body-metrics batch)
 
 ## Xcode project file
 
@@ -97,6 +97,12 @@ Without these steps the new code won't compile and `OpenExerciseDb` will silentl
 
 ### 21. Set completion redesign 🟢 SHIPPED
 - `SetEntry` gained `isCompleted: Bool = false` (session-only). New leading `SetCompleteButton` (circle outline → filled green check). Auto-tick on when weight + reps are both valid for a non-warmup set; never auto-tick off — user toggles via the button. Row tints green (`Color.fitTrackSuccess.opacity(0.15)`) when completed via `.animation(.easeInOut(duration: 0.22), value: set.isCompleted)`. `UIImpactFeedbackGenerator(style: .medium)` haptic on the false→true transition.
+
+### 22. Body metrics (Pro) 🔴 Not started
+- Android shipped a dated body-metrics log behind `FeatureGate.BODY_METRICS`: weight, body fat %, and waist/chest/hips/arm/thigh tape measurements, all optional per check-in. Stored canonically (kg / cm / %) in a new Room table `body_metrics` (DB v8, additive migration). Display units follow the kg/lbs preference (lbs users get inches).
+- Screen: `ui/bodymetrics/BodyMetricsScreen.kt` — "Latest" snapshot card (most recent value per metric across all check-ins), metric FilterChip row, animated trend chart (`LineTrendChart` with Start / Current / Change stats), history list with tap-to-edit and delete confirm, bottom-sheet log form with a past-only date picker. Free users see a paywall body; the FAB is hidden.
+- Entry points: Home top-bar scale icon, Settings → Profile → "Body Metrics" card (lock badge when free). Listed on the Upgrade screen. Saving a weight also mirrors the latest value into the Settings profile weight field.
+- iOS port: `@Model BodyMetric` (same optional fields), `BodyMetricsView` with Swift Charts `LineMark`, gate with `ProManager`, add to `SettingsView` and `HomeView` quick actions. Progress photos are intentionally out of scope on both platforms for now.
 
 ## Currently iOS-only deficiencies (not Android-shipped, just worth noting)
 
