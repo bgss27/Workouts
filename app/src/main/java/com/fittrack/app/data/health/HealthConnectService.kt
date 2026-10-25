@@ -6,9 +6,17 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
+import androidx.health.connect.client.request.AggregateRequest
+import androidx.health.connect.client.time.TimeRangeFilter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.Period
 import java.time.ZoneId
 
 /**
@@ -21,6 +29,18 @@ import java.time.ZoneId
  * - [AVAILABLE] — ready to request permissions and write records.
  */
 enum class HealthConnectAvailability { UNSUPPORTED, NOT_INSTALLED, AVAILABLE }
+
+/**
+ * Step counts read from Health Connect. [daily] is the last seven calendar
+ * days oldest-first, ending with today; [today] is the same as the last entry.
+ */
+data class StepsSummary(
+    val today: Long,
+    val daily: List<Long>,
+) {
+    val weeklyAverage: Long
+        get() = if (daily.isEmpty()) 0 else daily.sum() / daily.size
+}
 
 /**
  * Wraps the Health Connect client for FitTrack's two needs:
@@ -53,9 +73,17 @@ class HealthConnectService(context: Context) {
             runCatching { HealthConnectClient.getOrCreate(appContext) }.getOrNull()
         } else null
 
-    /** Permissions FitTrack asks for. Currently write-only — no reads. */
+    /** Permissions for workout sync (write-only). */
     val permissions: Set<String> = setOf(
         HealthPermission.getWritePermission(ExerciseSessionRecord::class),
+    )
+
+    /**
+     * Permission for the Home step tracker. Kept separate from [permissions]
+     * so a user can see steps without turning on workout sync, and vice versa.
+     */
+    val stepsPermissions: Set<String> = setOf(
+        HealthPermission.getReadPermission(StepsRecord::class),
     )
 
     /**
@@ -71,10 +99,14 @@ class HealthConnectService(context: Context) {
     private val _permissionsGranted = MutableStateFlow(false)
     val permissionsGranted: StateFlow<Boolean> = _permissionsGranted
 
+    private val _stepsGranted = MutableStateFlow(false)
+    val stepsGranted: StateFlow<Boolean> = _stepsGranted
+
     /** Re-query the OS for granted permissions; safe to call repeatedly. */
     suspend fun refreshPermissions() {
         val granted = client?.permissionController?.getGrantedPermissions() ?: emptySet()
         _permissionsGranted.value = granted.containsAll(permissions)
+        _stepsGranted.value = granted.containsAll(stepsPermissions)
         // If the user revoked permission outside our app, automatically flip
         // sync off so we don't silently fail every workout.
         if (!_permissionsGranted.value && _enabled.value) {
@@ -117,6 +149,42 @@ class HealthConnectService(context: Context) {
             c.insertRecords(listOf(record))
             Unit
         }
+    }
+
+    /**
+     * Today's step total plus the last seven days, aggregated by Health
+     * Connect across every connected source (phone sensor, watch, etc.).
+     * Returns null when the client is unavailable or permission is missing.
+     */
+    suspend fun readSteps(): StepsSummary? {
+        val c = client ?: return null
+        if (!_stepsGranted.value) return null
+        return runCatching {
+            val today = LocalDate.now()
+            val weekStart = today.minusDays(6).atStartOfDay()
+            val now = LocalDateTime.now()
+
+            val grouped = c.aggregateGroupByPeriod(
+                AggregateGroupByPeriodRequest(
+                    metrics = setOf(StepsRecord.COUNT_TOTAL),
+                    timeRangeFilter = TimeRangeFilter.between(weekStart, now),
+                    timeRangeSlicer = Period.ofDays(1),
+                )
+            )
+            val byDay = grouped.associate { it.startTime.toLocalDate() to (it.result[StepsRecord.COUNT_TOTAL] ?: 0L) }
+            val daily = (6 downTo 0).map { byDay[today.minusDays(it.toLong())] ?: 0L }
+
+            // Today's number straight from the aggregate so it matches the
+            // system Health app even if the day bucket is still filling.
+            val todayTotal = c.aggregate(
+                AggregateRequest(
+                    metrics = setOf(StepsRecord.COUNT_TOTAL),
+                    timeRangeFilter = TimeRangeFilter.between(today.atTime(LocalTime.MIDNIGHT), now),
+                )
+            )[StepsRecord.COUNT_TOTAL] ?: 0L
+
+            StepsSummary(today = todayTotal, daily = daily.dropLast(1) + todayTotal)
+        }.getOrNull()
     }
 
     companion object {

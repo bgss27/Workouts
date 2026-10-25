@@ -6,6 +6,8 @@
 
     <!-- Health Connect: write strength-training sessions to the system store. -->
     <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
+    <!-- Health Connect: read daily step counts for the Home step tracker. -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
 
     <!-- Visibility for the Health Connect provider on Android 11+.
          Pre-Android 14 ships Health Connect as a standalone app under

@@ -20,7 +20,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material.icons.filled.SelfImprovement
+import androidx.activity.compose.rememberLauncherForActivityResult
 import com.fittrack.app.data.EquipmentPrefs
+import com.fittrack.app.data.health.HealthConnectAvailability
+import com.fittrack.app.data.health.StepsSummary
+import com.fittrack.app.ui.components.PillChip
+import com.fittrack.app.ui.components.StatValue
+import androidx.compose.foundation.layout.fillMaxHeight
 import com.fittrack.app.data.WeightUnits
 import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.di.AppModule
@@ -61,7 +67,8 @@ fun HomeScreen(
             appModule.exerciseRepository,
             appModule.progressAnalyzer,
             appModule.userPlanRepository,
-            appModule.routineRepository
+            appModule.routineRepository,
+            appModule.healthConnectService,
         )
     )
 
@@ -75,6 +82,15 @@ fun HomeScreen(
     val planDays by viewModel.planDays.collectAsState()
     val planProgramName by viewModel.planProgramName.collectAsState()
     val isPro by proManager.isPro.collectAsState()
+
+    // Step tracker (Health Connect). Refreshed each time Home is shown.
+    val healthConnect = appModule.healthConnectService
+    val steps by viewModel.steps.collectAsState()
+    val stepsGranted by viewModel.stepsGranted.collectAsState()
+    LaunchedEffect(Unit) { viewModel.refreshSteps() }
+    val stepsLauncher = rememberLauncherForActivityResult(
+        contract = healthConnect.permissionRequestContract()
+    ) { viewModel.refreshSteps() }
 
     val context = LocalContext.current
     val unit = remember { WeightUnits.preferred(context) }
@@ -278,6 +294,17 @@ fun HomeScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
+                }
+            }
+
+            // Step tracker
+            if (healthConnect.availability == HealthConnectAvailability.AVAILABLE) {
+                item {
+                    StepsTile(
+                        summary = steps,
+                        granted = stepsGranted,
+                        onConnect = { stepsLauncher.launch(healthConnect.stepsPermissions) },
+                    )
                 }
             }
 
@@ -669,5 +696,74 @@ private fun formatVolume(weightKg: Double, unit: String): String {
         value >= 10_000 -> "%.0fk".format(value / 1000)
         value >= 1_000 -> "%.1fk".format(value / 1000)
         else -> "%.0f".format(value)
+    }
+}
+
+/**
+ * Daily step count from Health Connect. Before permission is granted it
+ * shows a one-tap connect prompt; afterwards today's total, the 7-day
+ * average, and a small bar strip of the last week.
+ */
+@Composable
+private fun StepsTile(
+    summary: StepsSummary?,
+    granted: Boolean,
+    onConnect: () -> Unit,
+) {
+    Tile {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(icon = Icons.Default.DirectionsWalk, tint = MaterialTheme.colorScheme.secondary)
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Steps", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = when {
+                        !granted -> "Connect Health Connect to see your daily steps"
+                        summary == null -> "Reading from Health Connect…"
+                        else -> "7-day average ${"%,d".format(summary.weeklyAverage)}"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (!granted) {
+                PillChip(label = "Connect", selected = true, onClick = onConnect)
+            }
+        }
+        if (granted && summary != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                StatValue(
+                    value = "%,d".format(summary.today),
+                    label = "Today",
+                    modifier = Modifier.weight(1f),
+                )
+                // Last-7-days bar strip; today is the rightmost, drawn in primary.
+                val max = (summary.daily.maxOrNull() ?: 0L).coerceAtLeast(1L)
+                Row(
+                    modifier = Modifier.height(40.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    summary.daily.forEachIndexed { i, v ->
+                        val isToday = i == summary.daily.lastIndex
+                        val fraction = (v.toFloat() / max).coerceIn(0.08f, 1f)
+                        Box(
+                            modifier = Modifier
+                                .width(10.dp)
+                                .fillMaxHeight(fraction)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(
+                                    if (isToday) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceContainerHigh
+                                )
+                        )
+                    }
+                }
+            }
+        }
     }
 }

@@ -7,6 +7,8 @@ import com.fittrack.app.data.entity.Equipment
 import com.fittrack.app.data.entity.Exercise
 import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.data.entity.UserPlan
+import com.fittrack.app.data.health.HealthConnectService
+import com.fittrack.app.data.health.StepsSummary
 import com.fittrack.app.data.relation.RoutineWithExercises
 import com.fittrack.app.data.relation.WorkoutWithExercises
 import com.fittrack.app.data.repository.ExerciseRepository
@@ -30,8 +32,23 @@ class HomeViewModel(
     private val exerciseRepository: ExerciseRepository,
     private val progressAnalyzer: ProgressAnalyzer,
     private val userPlanRepository: UserPlanRepository,
-    private val routineRepository: RoutineRepository
+    private val routineRepository: RoutineRepository,
+    private val healthConnectService: HealthConnectService,
 ) : ViewModel() {
+
+    /** Step counts from Health Connect; null until read or when unavailable. */
+    private val _steps = MutableStateFlow<StepsSummary?>(null)
+    val steps: StateFlow<StepsSummary?> = _steps
+
+    val stepsGranted: StateFlow<Boolean> = healthConnectService.stepsGranted
+
+    /** Re-check permission and reload step counts. Cheap; call on resume. */
+    fun refreshSteps() {
+        viewModelScope.launch {
+            healthConnectService.refreshPermissions()
+            _steps.value = healthConnectService.readSteps()
+        }
+    }
 
     val recentWorkouts: StateFlow<List<WorkoutWithExercises>> = workoutRepository.getAllWorkouts()
         .map { it.take(5) }
@@ -350,11 +367,15 @@ class HomeViewModel(
         private val exerciseRepository: ExerciseRepository,
         private val progressAnalyzer: ProgressAnalyzer,
         private val userPlanRepository: UserPlanRepository,
-        private val routineRepository: RoutineRepository
+        private val routineRepository: RoutineRepository,
+        private val healthConnectService: HealthConnectService,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return HomeViewModel(workoutRepository, exerciseRepository, progressAnalyzer, userPlanRepository, routineRepository) as T
+            return HomeViewModel(
+                workoutRepository, exerciseRepository, progressAnalyzer,
+                userPlanRepository, routineRepository, healthConnectService,
+            ) as T
         }
     }
 }
