@@ -5,11 +5,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -36,9 +38,16 @@ class MainActivity : ComponentActivity() {
                 val showBottomBar = currentRoute in Screen.bottomNavItems.map { it.route }
 
                 Scaffold(
+                    // Every destination has its own Scaffold that applies the
+                    // status/navigation bar insets, so the outer one must not
+                    // add them again or screens get a double top gap.
+                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
                     bottomBar = {
                         if (showBottomBar) {
-                            NavigationBar {
+                            NavigationBar(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                tonalElevation = 0.dp,
+                            ) {
                                 Screen.bottomNavItems.forEach { screen ->
                                     NavigationBarItem(
                                         icon = {
@@ -46,6 +55,13 @@ class MainActivity : ComponentActivity() {
                                         },
                                         label = { Text(screen.title) },
                                         selected = currentRoute == screen.route,
+                                        colors = NavigationBarItemDefaults.colors(
+                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            selectedTextColor = MaterialTheme.colorScheme.onBackground,
+                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        ),
                                         onClick = {
                                             // Always issue navigate(). launchSingleTop + restoreState
                                             // make tapping the already-selected tab a cheap no-op,

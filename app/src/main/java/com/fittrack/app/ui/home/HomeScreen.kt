@@ -14,6 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material.icons.filled.SelfImprovement
@@ -23,6 +27,9 @@ import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.domain.model.Suggestion
 import com.fittrack.app.ui.components.EmptyState
+import com.fittrack.app.ui.components.HeroCard
+import com.fittrack.app.ui.components.HeroStat
+import com.fittrack.app.ui.components.SectionHeader
 import com.fittrack.app.ui.components.SuggestionCard
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -93,7 +100,16 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("FitTrack") },
+                title = {
+                    Text(
+                        "FitTrack",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
                 actions = {
                     IconButton(onClick = onViewProgress) {
                         Icon(Icons.Default.ShowChart, contentDescription = "Progress")
@@ -143,28 +159,12 @@ fun HomeScreen(
             // My Plan Section
             if (hasPlan && planDays.isNotEmpty()) {
                 item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = "My Plan",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            planProgramName?.let {
-                                Text(
-                                    text = it,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                        TextButton(onClick = onViewMyPlan) {
-                            Text("View All")
-                        }
-                    }
+                    SectionHeader(
+                        title = "My Plan",
+                        subtitle = planProgramName,
+                        actionLabel = "View All",
+                        onAction = onViewMyPlan,
+                    )
                 }
 
                 item {
@@ -175,13 +175,14 @@ fun HomeScreen(
                             Card(
                                 modifier = Modifier.width(200.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                                )
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Text(
-                                        text = day.dayLabel,
-                                        style = MaterialTheme.typography.labelMedium,
+                                        text = day.dayLabel.uppercase(),
+                                        style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
@@ -194,7 +195,7 @@ fun HomeScreen(
                                     Text(
                                         text = "${day.routine?.exercises?.size ?: 0} exercises",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Button(
@@ -259,31 +260,26 @@ fun HomeScreen(
                 }
             }
 
-            // Stats Card
+            // Stats hero
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                HeroCard {
+                    Text(
+                        text = "Your Progress",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f)
                     )
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text(
-                            text = "Your Progress",
-                            style = MaterialTheme.typography.titleMedium
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        HeroStat(value = "$workoutCount", label = "Total", modifier = Modifier.weight(1f))
+                        HeroStat(value = "$workoutsThisWeek", label = "This Week", modifier = Modifier.weight(1f))
+                        HeroStat(
+                            value = formatVolume(totalVolumeKg, unit),
+                            label = "Volume ($unit)",
+                            modifier = Modifier.weight(1f)
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            HomeStat(value = "$workoutCount", label = "Total")
-                            HomeStat(value = "$workoutsThisWeek", label = "This Week")
-                            HomeStat(
-                                value = formatVolume(totalVolumeKg, unit),
-                                label = "Volume ($unit)"
-                            )
-                        }
                     }
                 }
             }
@@ -333,9 +329,10 @@ fun HomeScreen(
             // Suggestions
             if (suggestions.isNotEmpty()) {
                 item {
-                    Text(
-                        text = "Improvement Tips",
-                        style = MaterialTheme.typography.titleMedium
+                    SectionHeader(
+                        title = "Improvement Tips",
+                        actionLabel = if (suggestions.size > 3) "View all" else null,
+                        onAction = if (suggestions.size > 3) onViewSuggestions else null,
                     )
                 }
                 items(suggestions.take(3)) { suggestion ->
@@ -347,65 +344,108 @@ fun HomeScreen(
                         } else null,
                     )
                 }
-                if (suggestions.size > 3) {
-                    item {
-                        TextButton(onClick = onViewSuggestions) {
-                            Text("View all suggestions")
-                        }
-                    }
-                }
             }
 
             // Recent Workouts
             item {
-                Text(
-                    text = "Recent Workouts",
-                    style = MaterialTheme.typography.titleMedium
+                SectionHeader(
+                    title = "Recent Workouts",
+                    actionLabel = if (recentWorkouts.isNotEmpty()) "History" else null,
+                    onAction = if (recentWorkouts.isNotEmpty()) onViewHistory else null,
                 )
             }
 
             if (recentWorkouts.isEmpty()) {
                 item {
+                    // No action button here: the Quick Workout FAB already
+                    // covers it and would overlap a centred button.
                     EmptyState(
                         icon = Icons.Default.FitnessCenter,
                         title = "No workouts yet",
-                        subtitle = "Start your first workout to begin tracking progress!",
-                        actionLabel = "Start Workout",
-                        onAction = onStartWorkout
+                        subtitle = "Tap Quick Workout to begin tracking progress!",
                     )
                 }
             } else {
                 items(recentWorkouts) { workoutWithExercises ->
-                    val dateFormat = SimpleDateFormat("MMM d, yyyy 'at' HH:mm", Locale.getDefault())
+                    val start = Date(workoutWithExercises.workout.startTime)
+                    val dayFormat = remember { SimpleDateFormat("d", Locale.getDefault()) }
+                    val monthFormat = remember { SimpleDateFormat("MMM", Locale.getDefault()) }
+                    val timeFormat = remember { SimpleDateFormat("EEE, HH:mm", Locale.getDefault()) }
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onViewWorkoutDetail(workoutWithExercises.workout.id) }
+                            .clickable { onViewWorkoutDetail(workoutWithExercises.workout.id) },
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = dateFormat.format(Date(workoutWithExercises.workout.startTime)),
-                                style = MaterialTheme.typography.titleSmall
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            val exerciseNames = workoutWithExercises.exercises.mapNotNull { we ->
-                                exercises[we.exerciseId]?.name
-                            }
-                            Text(
-                                text = if (exerciseNames.isEmpty()) "${workoutWithExercises.exercises.size} exercises"
-                                else exerciseNames.joinToString(", "),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                maxLines = 2
-                            )
-                            if (workoutWithExercises.workout.endTime != null) {
-                                val duration = (workoutWithExercises.workout.endTime - workoutWithExercises.workout.startTime) / 60000
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            // Calendar-style date badge
+                            Column(
+                                modifier = Modifier
+                                    .size(width = 52.dp, height = 56.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
                                 Text(
-                                    text = "${duration}min",
+                                    text = dayFormat.format(start),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = monthFormat.format(start).uppercase(),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                                 )
                             }
+                            Column(modifier = Modifier.weight(1f)) {
+                                val exerciseNames = workoutWithExercises.exercises.mapNotNull { we ->
+                                    exercises[we.exerciseId]?.name
+                                }
+                                Text(
+                                    text = if (exerciseNames.isEmpty()) "${workoutWithExercises.exercises.size} exercises"
+                                    else exerciseNames.joinToString(", "),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    maxLines = 2
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = timeFormat.format(start),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    if (workoutWithExercises.workout.endTime != null) {
+                                        val duration = (workoutWithExercises.workout.endTime - workoutWithExercises.workout.startTime) / 60000
+                                        Text(
+                                            text = "·",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = "${duration} min",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                            }
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
                         }
                     }
                 }
@@ -581,25 +621,6 @@ private fun PickDayDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
-}
-
-@Composable
-private fun HomeStat(value: String, label: String) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(horizontal = 4.dp)
-    ) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.headlineMedium,
-            maxLines = 1
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            textAlign = TextAlign.Center
-        )
-    }
 }
 
 /**

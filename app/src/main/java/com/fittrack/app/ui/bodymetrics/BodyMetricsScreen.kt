@@ -20,6 +20,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -30,6 +31,8 @@ import com.fittrack.app.data.entity.BodyMetric
 import com.fittrack.app.data.entity.BodyMetricType
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.ui.components.EmptyState
+import com.fittrack.app.ui.components.HeroCard
+import com.fittrack.app.ui.components.HeroStat
 import com.fittrack.app.ui.components.LineTrendChart
 import com.fittrack.app.ui.components.TrendStats
 import java.time.Instant
@@ -216,39 +219,32 @@ private fun LatestSnapshotCard(
     units: BodyUnits,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+    HeroCard(modifier = modifier) {
+        Text(
+            text = "Latest",
+            style = MaterialTheme.typography.labelLarge,
+            color = Color.White.copy(alpha = 0.85f),
         )
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text("Latest", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(12.dp))
-            val present = BodyMetricType.entries.filter { it in latestByType }
-            // Two rows of up to four stats each keeps the card readable on phones.
-            present.chunked(4).forEach { row ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                ) {
-                    row.forEach { type ->
-                        val point = latestByType.getValue(type)
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = units.format(type, point.value),
-                                style = MaterialTheme.typography.titleSmall,
-                            )
-                            Text(
-                                text = type.displayName,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                            )
-                        }
-                    }
+        Spacer(modifier = Modifier.height(12.dp))
+        val present = BodyMetricType.entries.filter { it in latestByType }
+        // Rows of up to three stats keep the big numbers readable on phones.
+        present.chunked(3).forEach { row ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                row.forEach { type ->
+                    val point = latestByType.getValue(type)
+                    HeroStat(
+                        value = units.formatNumber(units.toDisplay(type, point.value)),
+                        label = "${type.displayName} ${units.unitLabel(type)}",
+                        modifier = Modifier.weight(1f),
+                    )
                 }
+                // Pad short rows so stats stay left-aligned in a grid.
+                repeat(3 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
             }
         }
     }
