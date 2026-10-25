@@ -6,12 +6,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.*
@@ -25,11 +24,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.di.AppModule
-import com.fittrack.app.ui.theme.FitTrackTheme
+import com.fittrack.app.ui.components.IconBadge
+import com.fittrack.app.ui.components.ListRow
+import com.fittrack.app.ui.components.RowDivider
+import com.fittrack.app.ui.components.ScreenGutter
+import com.fittrack.app.ui.components.ScreenHeader
+import com.fittrack.app.ui.components.Tile
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarScreen(
     appModule: AppModule,
@@ -56,9 +59,10 @@ fun CalendarScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text("Calendar") },
+            ScreenHeader(
+                title = "Calendar",
                 actions = {
                     IconButton(onClick = {
                         // Toolbar `+`: opens log-past form for whatever day is
@@ -68,7 +72,11 @@ fun CalendarScreen(
                             ?.toInstant()?.toEpochMilli()
                         onLogPastWorkout(dateMillis)
                     }) {
-                        Icon(Icons.Default.Add, contentDescription = "Log past workout")
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "Log past workout",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     TextButton(onClick = { viewModel.goToToday() }) {
                         Text("Today")
@@ -81,7 +89,8 @@ fun CalendarScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(bottom = 24.dp),
+            contentPadding = PaddingValues(horizontal = ScreenGutter, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
                 MonthHeader(
@@ -90,20 +99,18 @@ fun CalendarScreen(
                     onNext = { viewModel.nextMonth() },
                 )
             }
-            item { WeekdayHeader() }
             item {
-                MonthGrid(
-                    days = days,
-                    selected = selectedDate,
-                    onSelect = { viewModel.selectDate(it) },
-                )
+                Column {
+                    WeekdayHeader()
+                    Spacer(modifier = Modifier.height(4.dp))
+                    MonthGrid(
+                        days = days,
+                        selected = selectedDate,
+                        onSelect = { viewModel.selectDate(it) },
+                    )
+                }
             }
             item { Legend() }
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(8.dp))
-            }
             item {
                 SelectedDayPanel(
                     day = selectedDay,
@@ -120,22 +127,29 @@ fun CalendarScreen(
 @Composable
 private fun MonthHeader(label: String, onPrev: () -> Unit, onNext: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         IconButton(onClick = onPrev) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous month")
+            Icon(
+                Icons.Default.ChevronLeft,
+                contentDescription = "Previous month",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         Text(
             text = label,
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.Center,
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onBackground,
         )
         IconButton(onClick = onNext) {
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next month")
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = "Next month",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -144,18 +158,14 @@ private fun MonthHeader(label: String, onPrev: () -> Unit, onNext: () -> Unit) {
 private fun WeekdayHeader() {
     // Sunday-anchored to match the screenshot reference.
     val labels = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-    ) {
+    Row(modifier = Modifier.fillMaxWidth()) {
         labels.forEach { label ->
             Text(
-                text = label,
+                text = label.uppercase(),
                 modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -168,7 +178,7 @@ private fun MonthGrid(
     onSelect: (LocalDate) -> Unit,
 ) {
     if (days.isEmpty()) return
-    Column(modifier = Modifier.padding(horizontal = 4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         // 6 rows of 7. List arrives pre-padded to 42.
         for (row in 0 until 6) {
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -178,9 +188,7 @@ private fun MonthGrid(
                         day = day,
                         isSelected = day.date == selected,
                         onClick = { onSelect(day.date) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(2.dp),
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
@@ -195,85 +203,110 @@ private fun DayCell(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val semantic = FitTrackTheme.colors
     val today = LocalDate.now()
     val isFuture = day.date > today
     val hasWorkout = day.workouts.isNotEmpty()
 
-    // Cell background: subtle status tint that survives both light and dark.
-    val bg: Color = when {
-        isSelected -> MaterialTheme.colorScheme.primaryContainer
-        hasWorkout -> semantic.success.copy(alpha = 0.18f)
-        day.isMissed -> semantic.danger.copy(alpha = 0.18f)
-        else -> Color.Transparent
-    }
-    val border = if (day.isToday && !isSelected) {
-        MaterialTheme.colorScheme.primary
-    } else null
+    val circleBg: Color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+    val showTodayRing = day.isToday && !isSelected
 
     val textColor: Color = when {
-        !day.inMonth -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-        isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
-        isFuture -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+        isSelected -> MaterialTheme.colorScheme.onPrimary
+        !day.inMonth -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
+        isFuture -> MaterialTheme.colorScheme.onSurfaceVariant
         else -> MaterialTheme.colorScheme.onSurface
     }
 
-    Box(
+    val dotColor: Color? = when {
+        hasWorkout -> MaterialTheme.colorScheme.primary
+        day.isMissed -> MaterialTheme.colorScheme.tertiary
+        else -> null
+    }
+
+    Column(
         modifier = modifier
-            .height(56.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(bg)
-            .then(if (border != null) Modifier.border(1.5.dp, border, RoundedCornerShape(8.dp)) else Modifier)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
+            .clickable(onClick = onClick)
+            .padding(vertical = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(circleBg)
+                .then(
+                    if (showTodayRing) {
+                        Modifier.border(1.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                    } else Modifier
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
             Text(
                 text = day.date.dayOfMonth.toString(),
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (day.isToday) FontWeight.Bold else FontWeight.Normal,
+                fontWeight = if (day.isToday || isSelected) FontWeight.Bold else FontWeight.Normal,
                 color = textColor,
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            when {
-                hasWorkout -> Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(semantic.success)
-                )
-                day.isMissed -> Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(semantic.danger)
-                )
-                else -> Spacer(modifier = Modifier.size(6.dp))
-            }
         }
+        Spacer(modifier = Modifier.height(2.dp))
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(
+                    dotColor?.copy(alpha = if (day.inMonth) 1f else 0.35f) ?: Color.Transparent
+                )
+        )
     }
 }
 
 @Composable
 private fun Legend() {
-    val semantic = FitTrackTheme.colors
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        LegendDot(color = semantic.success, label = "Worked out")
-        LegendDot(color = semantic.danger, label = "Missed")
+        LegendDot(color = MaterialTheme.colorScheme.primary, label = "Worked out")
+        LegendDot(color = MaterialTheme.colorScheme.tertiary, label = "Missed")
     }
 }
 
 @Composable
 private fun LegendDot(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+        Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(color))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** Compact 40dp primary action used inside the selected-day panel. */
+@Composable
+private fun CompactPrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.height(40.dp),
+        shape = MaterialTheme.shapes.small,
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+        ),
+    ) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+        }
+        Text(text, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -286,117 +319,101 @@ private fun SelectedDayPanel(
     onLogPastWorkout: (Long?) -> Unit,
 ) {
     if (day == null) {
-        Text(
-            text = "Tap a day to see what you did.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            modifier = Modifier.padding(16.dp),
-        )
+        Tile {
+            Text(
+                text = "Tap a day to see what you did.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         return
     }
     val today = LocalDate.now()
-    val semantic = FitTrackTheme.colors
 
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+    Tile(contentPadding = PaddingValues(vertical = 16.dp)) {
         Text(
             text = day.date.format(dayFormatter),
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         when {
             day.workouts.isNotEmpty() -> {
-                day.workouts.forEach { w ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .clickable { onViewWorkoutDetail(w.workout.id) },
-                        colors = CardDefaults.cardColors(
-                            containerColor = semantic.success.copy(alpha = 0.12f)
-                        ),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = semantic.success)
-                            Column(modifier = Modifier.weight(1f)) {
-                                val durationLabel = w.workout.endTime?.let {
-                                    val mins = (it - w.workout.startTime) / 60_000
-                                    "${w.exercises.size} exercises · ${mins}min"
-                                } ?: "${w.exercises.size} exercises · in progress"
-                                Text(
-                                    text = "Workout complete",
-                                    style = MaterialTheme.typography.titleSmall,
-                                )
-                                Text(
-                                    text = durationLabel,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                )
-                            }
+                day.workouts.forEachIndexed { index, w ->
+                    if (index > 0) RowDivider()
+                    val durationLabel = w.workout.endTime?.let {
+                        val mins = (it - w.workout.startTime) / 60_000
+                        "${w.exercises.size} exercises · ${mins}min"
+                    } ?: "${w.exercises.size} exercises · in progress"
+                    ListRow(
+                        title = "Workout complete",
+                        subtitle = durationLabel,
+                        icon = Icons.Default.CheckCircle,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        onClick = { onViewWorkoutDetail(w.workout.id) },
+                        trailing = {
                             TextButton(onClick = { onViewWorkoutDetail(w.workout.id) }) {
                                 Text("View")
                             }
-                        }
-                    }
+                        },
+                    )
                 }
             }
             day.isMissed -> {
                 val dateMs = day.date.atStartOfDay(java.time.ZoneId.systemDefault())
                     .toInstant().toEpochMilli()
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = semantic.danger.copy(alpha = 0.12f)
-                    ),
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = semantic.danger)
-                            Text(
-                                text = "Missed — no workout logged",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        Button(
-                            onClick = { onLogPastWorkout(dateMs) },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Log workout for this day")
-                        }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        IconBadge(
+                            icon = Icons.Default.ErrorOutline,
+                            tint = MaterialTheme.colorScheme.tertiary,
+                            size = 36.dp,
+                        )
+                        Text(
+                            text = "Missed — no workout logged",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
                     }
+                    CompactPrimaryButton(
+                        text = "Log workout for this day",
+                        onClick = { onLogPastWorkout(dateMs) },
+                        icon = Icons.Default.Add,
+                    )
                 }
             }
             day.date == today -> {
                 val dateMs = day.date.atStartOfDay(java.time.ZoneId.systemDefault())
                     .toInstant().toEpochMilli()
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Icon(Icons.Default.FitnessCenter, contentDescription = null)
-                            Text(
-                                text = "No workout yet today",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(1f),
-                            )
-                            Button(onClick = onStartWorkout) { Text("Start") }
-                        }
-                        TextButton(onClick = { onLogPastWorkout(dateMs) }) {
-                            Text("Log a past workout for today")
-                        }
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        IconBadge(
+                            icon = Icons.Default.FitnessCenter,
+                            tint = MaterialTheme.colorScheme.primary,
+                            size = 36.dp,
+                        )
+                        Text(
+                            text = "No workout yet today",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        CompactPrimaryButton(text = "Start", onClick = onStartWorkout)
+                    }
+                    TextButton(onClick = { onLogPastWorkout(dateMs) }) {
+                        Text("Log a past workout for today")
                     }
                 }
             }
@@ -404,19 +421,23 @@ private fun SelectedDayPanel(
                 Text(
                     text = "Upcoming",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
             else -> {
                 val dateMs = day.date.atStartOfDay(java.time.ZoneId.systemDefault())
                     .toInstant().toEpochMilli()
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
                     Text(
                         text = "Rest day — no workout logged",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    OutlinedButton(onClick = { onLogPastWorkout(dateMs) }) {
+                    TextButton(onClick = { onLogPastWorkout(dateMs) }) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Log workout for this day")
@@ -426,4 +447,3 @@ private fun SelectedDayPanel(
         }
     }
 }
-

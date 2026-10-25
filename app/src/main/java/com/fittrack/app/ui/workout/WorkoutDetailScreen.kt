@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.data.WeightUnits
+import com.fittrack.app.ui.components.DetailHeader
 import com.fittrack.app.data.entity.WorkoutExercise
 import com.fittrack.app.data.entity.WorkoutSet
 import com.fittrack.app.di.AppModule
@@ -37,14 +38,7 @@ fun WorkoutDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Workout Detail") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
+            DetailHeader(title = "Workout Detail", onBack = onBack)
         }
     ) { padding ->
         LazyColumn(

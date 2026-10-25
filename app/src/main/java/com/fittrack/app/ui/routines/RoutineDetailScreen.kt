@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.di.AppModule
+import com.fittrack.app.ui.components.DetailHeader
 import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,14 +48,7 @@ fun RoutineDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(routineDetail?.routine?.name ?: "Routine") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
+            DetailHeader(title = routineDetail?.routine?.name ?: "Routine", onBack = onBack)
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(

@@ -19,6 +19,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.fittrack.app.ui.theme.HeroGradientEnd
 import com.fittrack.app.ui.theme.HeroGradientStart
+import com.fittrack.app.ui.theme.VoltInk
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.CompositionLocalProvider
 
 /**
  * A gradient "hero" surface for headline stats. Two soft translucent circles
@@ -43,19 +46,22 @@ fun HeroCard(
             // laid out, so they never affect the card's height.
             .drawBehind {
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.08f),
+                    color = Color.White.copy(alpha = 0.22f),
                     radius = size.height * 0.9f,
                     center = Offset(size.width * 0.92f, -size.height * 0.1f),
                 )
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.06f),
+                    color = Color.White.copy(alpha = 0.16f),
                     radius = size.height * 0.6f,
                     center = Offset(size.width * 0.05f, size.height * 1.05f),
                 )
             }
             .padding(20.dp),
-        content = content,
-    )
+    ) {
+        CompositionLocalProvider(LocalContentColor provides VoltInk) {
+            content()
+        }
+    }
 }
 
 /** Big number + small caps label, white-on-gradient, for use inside [HeroCard]. */
@@ -72,13 +78,13 @@ fun HeroStat(
         Text(
             text = value,
             style = MaterialTheme.typography.displaySmall,
-            color = Color.White,
+            color = VoltInk,
             maxLines = 1,
         )
         Text(
             text = label.uppercase(),
             style = MaterialTheme.typography.labelSmall,
-            color = Color.White.copy(alpha = 0.8f),
+            color = VoltInk.copy(alpha = 0.75f),
             textAlign = TextAlign.Center,
         )
     }

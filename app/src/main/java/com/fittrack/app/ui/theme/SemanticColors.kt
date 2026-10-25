@@ -28,11 +28,17 @@ val DarkFitTrackColors = FitTrackColors(
     danger = DangerDark,
 )
 
-val LocalFitTrackColors = staticCompositionLocalOf { LightFitTrackColors }
+val LocalFitTrackColors = staticCompositionLocalOf { DarkFitTrackColors }
+val LocalIsDarkTheme = staticCompositionLocalOf { true }
 
 object FitTrackTheme {
     val colors: FitTrackColors
         @Composable
         @ReadOnlyComposable
         get() = LocalFitTrackColors.current
+
+    val isDark: Boolean
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalIsDarkTheme.current
 }

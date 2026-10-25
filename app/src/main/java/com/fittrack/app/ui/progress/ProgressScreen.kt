@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.billing.ProManager
+import com.fittrack.app.ui.components.DetailHeader
 import com.fittrack.app.data.WeightUnits
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.ui.components.EmptyState
@@ -55,14 +56,7 @@ fun ProgressScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Progress") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
+            DetailHeader(title = "Progress", onBack = onBack)
         }
     ) { padding ->
         LazyColumn(

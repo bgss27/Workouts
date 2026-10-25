@@ -22,6 +22,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.data.WeightUnits
+import com.fittrack.app.ui.components.DetailHeader
 import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.di.AppModule
 import java.time.LocalDate
@@ -67,20 +68,12 @@ fun LogPastWorkoutScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Log Past Workout") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Cancel")
-                    }
-                },
-                actions = {
+            DetailHeader(title = "Log Past Workout", onBack = onBack, actions = {
                     TextButton(
                         onClick = { viewModel.save(weightUnitIsLbs = unit == WeightUnits.LBS) },
                         enabled = canSave,
                     ) { Text("Save") }
-                }
-            )
+                })
         }
     ) { padding ->
         LazyColumn(

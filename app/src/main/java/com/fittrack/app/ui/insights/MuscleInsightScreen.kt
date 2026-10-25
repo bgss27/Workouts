@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.di.AppModule
+import com.fittrack.app.ui.components.DetailHeader
 import com.fittrack.app.domain.ml.*
 import com.fittrack.app.ui.components.EmptyState
 import com.fittrack.app.ui.components.MuscleGroupChipRow
@@ -38,14 +39,7 @@ fun MuscleInsightScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("ML Insights") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
+            DetailHeader(title = "ML Insights", onBack = onBack)
         }
     ) { padding ->
         LazyColumn(

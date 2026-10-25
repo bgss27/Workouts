@@ -30,7 +30,15 @@ import com.fittrack.app.data.WeightUnits
 import com.fittrack.app.data.entity.BodyMetric
 import com.fittrack.app.data.entity.BodyMetricType
 import com.fittrack.app.di.AppModule
+import com.fittrack.app.ui.components.DetailHeader
 import com.fittrack.app.ui.components.EmptyState
+import com.fittrack.app.ui.components.IconBadge
+import com.fittrack.app.ui.components.PillChip
+import com.fittrack.app.ui.components.PrimaryButton
+import com.fittrack.app.ui.components.ScreenGutter
+import com.fittrack.app.ui.components.SectionHeader
+import com.fittrack.app.ui.components.Tile
+import androidx.compose.foundation.background
 import com.fittrack.app.ui.components.HeroCard
 import com.fittrack.app.ui.components.HeroStat
 import com.fittrack.app.ui.components.LineTrendChart
@@ -66,23 +74,23 @@ fun BodyMetricsScreen(
     var pendingDelete by remember { mutableStateOf<BodyMetric?>(null) }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Body Metrics") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = { DetailHeader(title = "Body Metrics", onBack = onBack) },
+        bottomBar = {
+            if (isPro && metrics.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.background)
+                        .navigationBarsPadding()
+                        .padding(horizontal = ScreenGutter, vertical = 12.dp)
+                ) {
+                    PrimaryButton(
+                        text = "Log check-in",
+                        icon = Icons.Default.Add,
+                        onClick = { editing = BodyMetric() },
+                    )
                 }
-            )
-        },
-        floatingActionButton = {
-            if (isPro) {
-                ExtendedFloatingActionButton(
-                    onClick = { editing = BodyMetric() },
-                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                    text = { Text("Log check-in") },
-                )
             }
         }
     ) { padding ->
@@ -100,7 +108,8 @@ fun BodyMetricsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(bottom = 96.dp),
+            contentPadding = PaddingValues(horizontal = ScreenGutter, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (metrics.isEmpty()) {
                 item {
@@ -120,21 +129,17 @@ fun BodyMetricsScreen(
                 LatestSnapshotCard(
                     latestByType = latestByType,
                     units = units,
-                    modifier = Modifier.padding(16.dp),
                 )
             }
 
             // Metric selector
             item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(BodyMetricType.entries) { type ->
-                        FilterChip(
+                        PillChip(
+                            label = type.displayName,
                             selected = type == selectedType,
                             onClick = { viewModel.selectType(type) },
-                            label = { Text(type.displayName) },
                         )
                     }
                 }
@@ -142,16 +147,12 @@ fun BodyMetricsScreen(
 
             // Trend chart
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
+                Tile(contentPadding = PaddingValues(0.dp)) {
                     if (series.isEmpty()) {
                         Text(
                             text = "No ${selectedType.displayName.lowercase()} logged yet. Add it to your next check-in to see a trend here.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(16.dp),
                         )
                     } else {
@@ -167,11 +168,7 @@ fun BodyMetricsScreen(
 
             // History
             item {
-                Text(
-                    text = "History",
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
+                SectionHeader(title = "History", modifier = Modifier.padding(top = 8.dp))
             }
             items(metrics, key = { it.id }) { metric ->
                 CheckInRow(
@@ -223,7 +220,7 @@ private fun LatestSnapshotCard(
         Text(
             text = "Latest",
             style = MaterialTheme.typography.labelLarge,
-            color = Color.White.copy(alpha = 0.85f),
+            color = com.fittrack.app.ui.theme.VoltInk.copy(alpha = 0.8f),
         )
         Spacer(modifier = Modifier.height(12.dp))
         val present = BodyMetricType.entries.filter { it in latestByType }
@@ -262,27 +259,34 @@ private fun CheckInRow(
             .mapNotNull { type -> type.valueOf(metric)?.let { "${type.displayName} ${units.format(type, it)}" } }
             .joinToString(" · ")
     }
-    ListItem(
-        headlineContent = { Text(formatDate(metric.recordedAt)) },
-        supportingContent = {
-            Column {
-                Text(summary)
+    Tile(onClick = onClick, contentPadding = PaddingValues(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(icon = Icons.Default.MonitorWeight, size = 36.dp)
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(formatDate(metric.recordedAt), style = MaterialTheme.typography.titleSmall)
+                Text(
+                    summary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 metric.notes?.takeIf { it.isNotBlank() }?.let {
                     Text(
                         it,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-        },
-        trailingContent = {
             IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete check-in")
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Delete check-in",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-        },
-        modifier = Modifier.clickable { onClick() },
-    )
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -470,13 +474,8 @@ private fun BodyMetricsPaywall(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(modifier = Modifier.height(24.dp))
-        Icon(
-            Icons.Default.MonitorWeight,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.primary,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        IconBadge(icon = Icons.Default.MonitorWeight, size = 72.dp)
+        Spacer(modifier = Modifier.height(20.dp))
         Text(
             "Track your body, not just your lifts",
             style = MaterialTheme.typography.titleLarge,
@@ -487,16 +486,11 @@ private fun BodyMetricsPaywall(
             "Log weight, body fat, and tape measurements, then watch the trend lines move alongside your training.",
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(24.dp))
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-            )
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+        Tile {
+            Column {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -513,14 +507,10 @@ private fun BodyMetricsPaywall(
                 Text(
                     "Includes: " + BodyMetricType.entries.joinToString(", ") { it.displayName.lowercase() } + ".",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(onClick = onUpgrade) {
-                    Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Unlock with Pro")
-                }
+                Spacer(modifier = Modifier.height(16.dp))
+                PrimaryButton(text = "Unlock with Pro", icon = Icons.Default.Star, onClick = onUpgrade)
             }
         }
     }

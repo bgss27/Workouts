@@ -2,20 +2,24 @@ package com.fittrack.app.ui.myplan
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.ui.components.EmptyState
+import com.fittrack.app.ui.components.IconBadge
+import com.fittrack.app.ui.components.ScreenGutter
+import com.fittrack.app.ui.components.ScreenHeader
+import com.fittrack.app.ui.components.Tile
+import com.fittrack.app.ui.components.TonalButton
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyPlanScreen(
     appModule: AppModule,
@@ -36,20 +40,23 @@ fun MyPlanScreen(
     var showClearDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text("My Plan") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            ScreenHeader(
+                title = "My Plan",
+                eyebrow = uiState.programName,
                 actions = {
                     if (uiState.hasPlan) {
                         IconButton(onClick = { showClearDialog = true }) {
-                            Icon(Icons.Default.DeleteSweep, contentDescription = "Clear plan")
+                            Icon(
+                                Icons.Default.DeleteSweep,
+                                contentDescription = "Clear plan",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
+                    // My Plan is a bottom tab; onBack is kept for the
+                    // signature but a back arrow here would be confusing.
                 }
             )
         }
@@ -82,95 +89,87 @@ fun MyPlanScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(horizontal = ScreenGutter, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Program header
+                // Program summary
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
-                        )
-                    ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.EventNote,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Text(
-                                    text = uiState.programName ?: "My Routines",
-                                    style = MaterialTheme.typography.headlineSmall
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "${uiState.days.size} workout${if (uiState.days.size != 1) "s" else ""} in your plan",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                            )
-                        }
-                    }
+                    Text(
+                        text = "${uiState.days.size} workout${if (uiState.days.size != 1) "s" else ""} in your plan".uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
 
-                // Day cards
-                itemsIndexed(uiState.days) { index, planDay ->
+                // Day tiles
+                items(uiState.days) { planDay ->
                     val routine = planDay.routine
-                    Card(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = planDay.dayLabel,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = routine?.routine?.name ?: "Unknown routine",
-                                        style = MaterialTheme.typography.titleMedium
-                                    )
-                                }
-                                FilledTonalButton(
-                                    onClick = {
-                                        routine?.routine?.id?.let { onStartRoutine(it) }
-                                    }
-                                ) {
-                                    Icon(
-                                        Icons.Default.PlayArrow,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Start")
-                                }
-                            }
+                    val sortedExercises = routine?.exercises?.sortedBy { it.orderIndex } ?: emptyList()
+                    val exerciseCount = sortedExercises.size
 
-                            routine?.let { r ->
-                                Spacer(modifier = Modifier.height(8.dp))
+                    Tile {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            IconBadge(
+                                icon = Icons.Default.FitnessCenter,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = planDay.dayLabel.uppercase(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = routine?.routine?.name ?: "Unknown routine",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = "$exerciseCount exercise${if (exerciseCount != 1) "s" else ""}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Button(
+                                onClick = {
+                                    routine?.routine?.id?.let { onStartRoutine(it) }
+                                },
+                                modifier = Modifier.height(40.dp),
+                                shape = MaterialTheme.shapes.small,
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Start", fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        routine?.let { r ->
+                            if (r.routine.description.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(10.dp))
                                 Text(
                                     text = r.routine.description,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                            }
 
-                                Spacer(modifier = Modifier.height(8.dp))
-                                // Show exercises in the routine
-                                val exerciseNames = r.exercises
-                                    .sortedBy { it.orderIndex }
-                                    .mapNotNull { re -> exerciseMap[re.exerciseId]?.name }
-
-                                exerciseNames.forEachIndexed { i, name ->
+                            if (sortedExercises.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                sortedExercises.forEachIndexed { i, re ->
+                                    val name = exerciseMap[re.exerciseId]?.name ?: return@forEachIndexed
                                     Row(
                                         modifier = Modifier.padding(vertical = 2.dp),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -178,13 +177,12 @@ fun MyPlanScreen(
                                         Text(
                                             text = "${i + 1}.",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Text(
                                             text = name,
                                             style = MaterialTheme.typography.bodySmall
                                         )
-                                        val re = r.exercises.sortedBy { it.orderIndex }[i]
                                         Text(
                                             text = "${re.suggestedSets}x${re.suggestedReps}",
                                             style = MaterialTheme.typography.labelSmall,
@@ -199,14 +197,12 @@ fun MyPlanScreen(
 
                 // Change plan button
                 item {
-                    OutlinedButton(
+                    Spacer(modifier = Modifier.height(4.dp))
+                    TonalButton(
+                        text = "Change Plan",
                         onClick = onBrowseRoutines,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.SwapHoriz, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Change Plan")
-                    }
+                        icon = Icons.Default.SwapHoriz
+                    )
                 }
             }
         }

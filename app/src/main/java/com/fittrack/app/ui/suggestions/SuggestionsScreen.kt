@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.di.AppModule
+import com.fittrack.app.ui.components.DetailHeader
 import com.fittrack.app.ui.components.EmptyState
 import com.fittrack.app.ui.components.MuscleGroupChipRow
 import com.fittrack.app.ui.components.SuggestionCard
@@ -36,14 +37,7 @@ fun SuggestionsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Improvement Tips") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
+            DetailHeader(title = "Improvement Tips", onBack = onBack)
         }
     ) { padding ->
         LazyColumn(

@@ -3,19 +3,21 @@ package com.fittrack.app.ui.workout
 import android.media.AudioManager
 import android.media.ToneGenerator
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
@@ -27,11 +29,18 @@ import com.fittrack.app.data.repository.ExerciseImageRepository
 import com.fittrack.app.domain.analysis.WarmupCatalog
 import com.fittrack.app.domain.analysis.WarmupSection
 import com.fittrack.app.di.AppModule
+import com.fittrack.app.ui.components.DetailHeader
+import com.fittrack.app.ui.components.EmptyState
 import com.fittrack.app.ui.components.ExerciseCard
 import com.fittrack.app.ui.components.MuscleGroupChipRow
 import com.fittrack.app.ui.components.PlateCalculatorSheet
+import com.fittrack.app.ui.components.PrimaryButton
 import com.fittrack.app.ui.components.RestTimerChip
 import com.fittrack.app.ui.components.RestTimerSheet
+import com.fittrack.app.ui.components.ScreenGutter
+import com.fittrack.app.ui.components.Tile
+import com.fittrack.app.ui.components.TonalButton
+import com.fittrack.app.ui.components.fitTextFieldColors
 import kotlinx.coroutines.delay
 
 /** Default rest length auto-started when a working set is logged. */
@@ -158,39 +167,99 @@ fun ActiveWorkoutScreen(
     // by gesture/hardware back. Same dialog as tapping the top-bar back arrow.
     BackHandler { showDiscardDialog = true }
 
+    // Derived counters for the status strip. Computed from existing state —
+    // no new tracking is introduced here.
+    val totalSets = uiState.exercises.sumOf { ex -> ex.sets.count { !it.isWarmup } }
+    val completedSets = uiState.exercises.sumOf { ex -> ex.sets.count { !it.isWarmup && it.isCompleted } }
+    val totalVolume = uiState.exercises.sumOf { ex ->
+        ex.sets.filter { !it.isWarmup && it.isCompleted }.sumOf { s ->
+            (s.weight.toDoubleOrNull() ?: 0.0) * (s.reps.toIntOrNull() ?: 0)
+        }
+    }
+
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text("Workout") },
-                navigationIcon = {
-                    IconButton(onClick = { showDiscardDialog = true }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    val activeEndsAt = restTimerEndsAtMillis
-                    if (activeEndsAt != null) {
-                        RestTimerChip(
-                            endsAtMillis = activeEndsAt,
-                            onClick = { showRestTimerSheet = true }
-                        )
-                    } else {
-                        IconButton(onClick = { showRestTimerSheet = true }) {
-                            Icon(Icons.Default.Timer, contentDescription = "Rest timer")
+            Column(modifier = Modifier.fillMaxWidth()) {
+                DetailHeader(
+                    title = "Workout",
+                    onBack = { showDiscardDialog = true },
+                    actions = {
+                        val activeEndsAt = restTimerEndsAtMillis
+                        if (activeEndsAt != null) {
+                            RestTimerChip(
+                                endsAtMillis = activeEndsAt,
+                                onClick = { showRestTimerSheet = true }
+                            )
+                        } else {
+                            IconButton(onClick = { showRestTimerSheet = true }) {
+                                Icon(
+                                    Icons.Default.Timer,
+                                    contentDescription = "Rest timer",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        IconButton(onClick = { showPlateCalcSheet = true }) {
+                            Icon(
+                                Icons.Default.Calculate,
+                                contentDescription = "Plate calculator",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
-                    IconButton(onClick = { showPlateCalcSheet = true }) {
-                        Icon(Icons.Default.Calculate, contentDescription = "Plate calculator")
-                    }
-                    TextButton(onClick = { showFinishDialog = true }) {
-                        Text("Finish")
-                    }
+                )
+                // Slim status strip: live dot + state label, then derived counters.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = ScreenGutter, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                    Text(
+                        text = "In progress",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        text = buildString {
+                            append("$completedSets/$totalSets sets")
+                            if (totalVolume > 0.0) {
+                                append("  ·  ")
+                                append("${totalVolume.toInt()} ${uiState.weightUnit}")
+                            }
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-            )
+            }
         },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showExercisePicker = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add exercise")
+        bottomBar = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+                    .navigationBarsPadding()
+                    .padding(horizontal = ScreenGutter, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                TonalButton(
+                    text = "Add Exercise",
+                    icon = Icons.Default.Add,
+                    onClick = { showExercisePicker = true },
+                )
+                PrimaryButton(
+                    text = "Finish Workout",
+                    onClick = { showFinishDialog = true },
+                )
             }
         }
     ) { padding ->
@@ -201,28 +270,21 @@ fun ActiveWorkoutScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.FitnessCenter,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Add exercises to get started")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = { showExercisePicker = true }) {
-                        Text("Add Exercise")
-                    }
-                }
+                EmptyState(
+                    icon = Icons.Default.FitnessCenter,
+                    title = "No exercises yet",
+                    subtitle = "Add exercises to get started",
+                    actionLabel = "Add Exercise",
+                    onAction = { showExercisePicker = true },
+                )
             }
         } else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                contentPadding = PaddingValues(horizontal = ScreenGutter, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Time-of-day guidance banner (with warmup recommendations).
                 // Hidden entirely once the user dismisses it for this workout.
@@ -237,11 +299,12 @@ fun ActiveWorkoutScreen(
                         com.fittrack.app.domain.analysis.TimeOfDay.AFTERNOON -> Icons.Default.WbCloudy
                         com.fittrack.app.domain.analysis.TimeOfDay.EVENING -> Icons.Default.NightsStay
                     }
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = bannerColor),
-                        onClick = { showTipsExpanded = !showTipsExpanded }
+                    Tile(
+                        containerColor = bannerColor,
+                        onClick = { showTipsExpanded = !showTipsExpanded },
+                        contentPadding = PaddingValues(12.dp),
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
+                        Column {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -347,7 +410,7 @@ fun ActiveWorkoutScreen(
                         },
                     )
                 }
-                item { Spacer(modifier = Modifier.height(80.dp)) }
+                item { Spacer(modifier = Modifier.height(96.dp)) }
             }
         }
     }
@@ -434,12 +497,14 @@ fun ActiveWorkoutScreen(
             title = { Text("Add Exercise") },
             text = {
                 Column {
-                    OutlinedTextField(
+                    TextField(
                         value = searchQuery,
                         onValueChange = { viewModel.searchExercises(it) },
-                        label = { Text("Search exercises") },
+                        placeholder = { Text("Search exercises") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
+                        shape = MaterialTheme.shapes.small,
+                        colors = fitTextFieldColors(),
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
                     )
 

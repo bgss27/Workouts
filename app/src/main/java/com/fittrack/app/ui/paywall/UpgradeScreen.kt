@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.fittrack.app.BuildConfig
+import com.fittrack.app.ui.components.DetailHeader
 import com.fittrack.app.billing.FeatureGate
 import com.fittrack.app.billing.ProManager
 import com.fittrack.app.ui.theme.FitTrackTheme
@@ -48,14 +49,7 @@ fun UpgradeScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Upgrade to Pro") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
+            DetailHeader(title = "Upgrade to Pro", onBack = onBack)
         }
     ) { padding ->
         LazyColumn(

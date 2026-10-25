@@ -18,6 +18,7 @@ import androidx.navigation.compose.rememberNavController
 import com.fittrack.app.ui.navigation.NavGraph
 import com.fittrack.app.ui.navigation.Screen
 import com.fittrack.app.ui.theme.FitTrackTheme
+import com.fittrack.app.data.ThemePrefs
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,8 +29,10 @@ class MainActivity : ComponentActivity() {
         val appModule = app.appModule
         val proManager = app.proManager
 
+        ThemePrefs.load(this)
         setContent {
-            FitTrackTheme {
+            val themeMode by ThemePrefs.mode.collectAsState()
+            FitTrackTheme(mode = themeMode) {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
@@ -56,8 +59,8 @@ class MainActivity : ComponentActivity() {
                                         label = { Text(screen.title) },
                                         selected = currentRoute == screen.route,
                                         colors = NavigationBarItemDefaults.colors(
-                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
                                             selectedTextColor = MaterialTheme.colorScheme.onBackground,
                                             unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                             unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,

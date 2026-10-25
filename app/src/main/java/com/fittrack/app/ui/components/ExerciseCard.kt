@@ -1,21 +1,25 @@
 package com.fittrack.app.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.*
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import com.fittrack.app.data.repository.ExerciseImageRepository
 import com.fittrack.app.data.repository.ExerciseInstructions
 import com.fittrack.app.data.repository.OpenExerciseDb
@@ -79,66 +83,76 @@ fun ExerciseCard(
             ?: ExerciseInstructions.get(exerciseName)
     }
 
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = if (inSuperset) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
+    val accent = if (inSuperset) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+
+    Tile(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(0.dp),
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            if (inSuperset) {
-                SupersetBadge(modifier = Modifier.padding(bottom = 6.dp))
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { toggle() },
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = exerciseName,
-                        style = MaterialTheme.typography.titleMedium
-                    )
+        // Header: icon badge, name + muscle group, trailing actions.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { toggle() }
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            IconBadge(icon = Icons.Default.FitnessCenter, tint = accent)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = exerciseName,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Text(
                         text = muscleGroup,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
                     )
+                    if (inSuperset) SupersetBadge()
                 }
-                Row {
-                    if (onSwap != null) {
-                        IconButton(onClick = onSwap) {
-                            Icon(
-                                imageVector = Icons.Default.SwapHoriz,
-                                contentDescription = "Swap exercise",
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onSwap != null) {
+                    IconButton(onClick = onSwap, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.SwapHoriz,
+                            contentDescription = "Swap exercise",
+                            tint = muted,
+                        )
                     }
-                    if (canToggleSuperset || inSuperset) {
-                        IconButton(onClick = onSupersetToggle) {
-                            Icon(
-                                imageVector = if (inSuperset) Icons.Default.LinkOff else Icons.Default.Link,
-                                contentDescription = if (inSuperset) "Remove from superset" else "Group with previous as superset",
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
+                }
+                if (canToggleSuperset || inSuperset) {
+                    IconButton(onClick = onSupersetToggle, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            imageVector = if (inSuperset) Icons.Default.LinkOff else Icons.Default.Link,
+                            contentDescription = if (inSuperset) "Remove from superset" else "Group with previous as superset",
+                            tint = muted,
+                        )
                     }
-                    IconButton(onClick = onRemoveExercise) {
-                        Icon(Icons.Default.Delete, contentDescription = "Remove exercise", tint = MaterialTheme.colorScheme.error)
-                    }
+                }
+                IconButton(onClick = onRemoveExercise, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Delete, contentDescription = "Remove exercise", tint = muted)
+                }
+                IconButton(onClick = toggle, modifier = Modifier.size(36.dp)) {
                     Icon(
                         if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (isExpanded) "Collapse" else "Expand"
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        tint = muted,
                     )
                 }
             }
+        }
 
-            AnimatedVisibility(visible = isExpanded) {
-                Column {
+        AnimatedVisibility(visible = isExpanded) {
+            Column {
+                Column(modifier = Modifier.padding(horizontal = 14.dp)) {
                     // How-to text — shown for any exercise we have written
                     // instructions for. Especially useful for bodyweight
                     // exercises pulled in by the "home workout" generator,
@@ -147,21 +161,21 @@ fun ExerciseCard(
                         Text(
                             text = instructions,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
-                            modifier = Modifier.padding(vertical = 6.dp),
+                            color = muted,
+                            modifier = Modifier.padding(bottom = 6.dp),
                         )
                     }
                     if (hasForm) {
                         TextButton(
                             onClick = { showForm = !showForm },
-                            modifier = Modifier.padding(vertical = 4.dp)
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                         ) {
                             Icon(
                                 Icons.Default.Image,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp)
                             )
-                            Spacer(Modifier.width(4.dp))
+                            Spacer(Modifier.width(6.dp))
                             Text(
                                 if (showForm) "Hide form" else "View form",
                                 style = MaterialTheme.typography.labelMedium
@@ -175,17 +189,20 @@ fun ExerciseCard(
                         }
                     }
 
-                    // Header
+                    // Set table header
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(start = 4.dp, end = 4.dp, top = 6.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text("Set", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(24.dp))
-                        Text("Weight ($weightUnit)", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
-                        Text("Reps", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
-                        Spacer(modifier = Modifier.width(80.dp))
+                        SetHeaderLabel("SET", modifier = Modifier.width(28.dp))
+                        SetHeaderLabel(weightUnit.uppercase(), modifier = Modifier.weight(1f))
+                        SetHeaderLabel("REPS", modifier = Modifier.weight(1f))
+                        // Matches the row's trailing cluster: W pill (32) +
+                        // check (28) + delete (28) with 8dp gaps.
+                        Spacer(modifier = Modifier.width(104.dp))
                     }
 
                     var workingSetNumber = 0
@@ -220,15 +237,33 @@ fun ExerciseCard(
                             onSetCompleted = onSetCompleted,
                         )
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
-                    TextButton(
-                        onClick = onAddSet,
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Add Set")
-                    }
+                // Add set: full-width strip on a container-high fill that
+                // takes the tile's bottom corners (the Tile clips to its shape).
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        .clickable(onClick = onAddSet)
+                        .padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "Add set",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 }
             }
         }
@@ -236,27 +271,40 @@ fun ExerciseCard(
 }
 
 @Composable
-private fun SupersetBadge(modifier: Modifier = Modifier) {
-    Surface(
+private fun SetHeaderLabel(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        maxLines = 1,
         modifier = modifier,
-        shape = RoundedCornerShape(6.dp),
-        color = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
+    )
+}
+
+/** Small pill marking an exercise as part of a superset. */
+@Composable
+private fun SupersetBadge(modifier: Modifier = Modifier) {
+    val fg = MaterialTheme.colorScheme.secondary
+    Row(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(fg.copy(alpha = 0.16f))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Icon(
-                Icons.Default.Link,
-                contentDescription = null,
-                modifier = Modifier.size(12.dp),
-            )
-            Text(
-                text = "Superset",
-                style = MaterialTheme.typography.labelSmall,
-            )
-        }
+        Icon(
+            Icons.Default.Link,
+            contentDescription = null,
+            tint = fg,
+            modifier = Modifier.size(12.dp),
+        )
+        Text(
+            text = "Superset",
+            style = MaterialTheme.typography.labelSmall,
+            color = fg,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }

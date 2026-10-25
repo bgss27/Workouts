@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -13,8 +12,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
@@ -29,8 +28,12 @@ import com.fittrack.app.domain.model.Suggestion
 import com.fittrack.app.ui.components.EmptyState
 import com.fittrack.app.ui.components.HeroCard
 import com.fittrack.app.ui.components.HeroStat
+import com.fittrack.app.ui.components.IconBadge
+import com.fittrack.app.ui.components.ScreenGutter
+import com.fittrack.app.ui.components.ScreenHeader
 import com.fittrack.app.ui.components.SectionHeader
 import com.fittrack.app.ui.components.SuggestionCard
+import com.fittrack.app.ui.components.Tile
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -96,66 +99,85 @@ fun HomeScreen(
         }
     }
 
+    // Eyebrow date, e.g. "Sunday, Oct 25".
+    val todayLabel = remember {
+        SimpleDateFormat("EEEE, MMM d", Locale.getDefault()).format(Date())
+    }
+
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "FitTrack",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
+            ScreenHeader(
+                title = "FitTrack",
+                eyebrow = todayLabel,
                 actions = {
                     IconButton(onClick = onViewProgress) {
-                        Icon(Icons.Default.ShowChart, contentDescription = "Progress")
+                        Icon(
+                            Icons.Default.ShowChart,
+                            contentDescription = "Progress",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     IconButton(onClick = onViewMlInsights) {
-                        Icon(Icons.Default.Psychology, contentDescription = "Insights")
+                        Icon(
+                            Icons.Default.Psychology,
+                            contentDescription = "Insights",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     IconButton(onClick = onViewBodyMetrics) {
-                        Icon(Icons.Default.MonitorWeight, contentDescription = "Body Metrics")
+                        Icon(
+                            Icons.Default.MonitorWeight,
+                            contentDescription = "Body Metrics",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     IconButton(onClick = onViewHistory) {
-                        Icon(Icons.Default.History, contentDescription = "History")
+                        Icon(
+                            Icons.Default.History,
+                            contentDescription = "History",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
-                }
+                },
             )
         },
-        floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                // Secondary action: build a workout from what the user has at
-                // home. Labeled "Home Workout" (not just an icon) so it can't
-                // be confused with the bottom-nav Home destination.
-                ExtendedFloatingActionButton(
-                    onClick = { showHomeSheet = true },
-                    icon = { Icon(Icons.Default.SelfImprovement, contentDescription = null) },
-                    text = { Text("Home Workout") },
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-                ExtendedFloatingActionButton(
-                    onClick = onStartWorkout,
-                    icon = { Icon(Icons.Default.FitnessCenter, contentDescription = null) },
-                    text = { Text("Quick Workout") }
-                )
-            }
-        }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(horizontal = ScreenGutter, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Quick actions: the two primary entry points, side by side.
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    QuickActionTile(
+                        icon = Icons.Default.FitnessCenter,
+                        title = "Quick Workout",
+                        subtitle = "Log sets as you go",
+                        tint = MaterialTheme.colorScheme.primary,
+                        onClick = onStartWorkout,
+                        modifier = Modifier.weight(1f),
+                    )
+                    // Labeled "Home Workout" (not just an icon) so it can't be
+                    // confused with the bottom-nav Home destination.
+                    QuickActionTile(
+                        icon = Icons.Default.SelfImprovement,
+                        title = "Home Workout",
+                        subtitle = "Built from your gear",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        onClick = { showHomeSheet = true },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+
             // My Plan Section
             if (hasPlan && planDays.isNotEmpty()) {
                 item {
@@ -171,48 +193,52 @@ fun HomeScreen(
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        itemsIndexed(planDays) { index, day ->
-                            Card(
-                                modifier = Modifier.width(200.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                                ),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(
-                                        text = day.dayLabel.uppercase(),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
+                        items(planDays) { day ->
+                            Tile(modifier = Modifier.width(180.dp)) {
+                                Text(
+                                    text = day.dayLabel.uppercase(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = day.routine?.routine?.name ?: "Workout",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "${day.routine?.exercises?.size ?: 0} exercises",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Button(
+                                    onClick = {
+                                        day.routine?.routine?.id?.let { onStartRoutine(it) }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(40.dp),
+                                    shape = MaterialTheme.shapes.small,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = day.routine?.routine?.name ?: "Workout",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        maxLines = 1
+                                        "Start",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold,
                                     )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = "${day.routine?.exercises?.size ?: 0} exercises",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Button(
-                                        onClick = {
-                                            day.routine?.routine?.id?.let { onStartRoutine(it) }
-                                        },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.PlayArrow,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Start", style = MaterialTheme.typography.labelMedium)
-                                    }
                                 }
                             }
                         }
@@ -221,42 +247,13 @@ fun HomeScreen(
             } else {
                 // No plan - prompt to set one up
                 item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onViewMyPlan() },
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.EventNote,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Set up your workout plan",
-                                    style = MaterialTheme.typography.titleSmall
-                                )
-                                Text(
-                                    text = "Choose a 3-day or 5-day program to follow",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-                                )
-                            }
-                            Icon(
-                                Icons.Default.ChevronRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.5f)
-                            )
-                        }
-                    }
+                    PromptTile(
+                        icon = Icons.Default.EventNote,
+                        tint = MaterialTheme.colorScheme.primary,
+                        title = "Set up your workout plan",
+                        subtitle = "Choose a 3-day or 5-day program to follow",
+                        onClick = onViewMyPlan,
+                    )
                 }
             }
 
@@ -266,7 +263,7 @@ fun HomeScreen(
                     Text(
                         text = "Your Progress",
                         style = MaterialTheme.typography.labelLarge,
-                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f)
+                        color = com.fittrack.app.ui.theme.VoltInk.copy(alpha = 0.8f)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(
@@ -287,42 +284,13 @@ fun HomeScreen(
             // Pro upgrade banner (only shown to free users)
             if (!isPro) {
                 item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onUpgrade() },
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Star,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Upgrade to Pro",
-                                    style = MaterialTheme.typography.titleSmall
-                                )
-                                Text(
-                                    text = "Unlock ML insights, all programs, and more",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
-                                )
-                            }
-                            Icon(
-                                Icons.Default.ChevronRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.5f)
-                            )
-                        }
-                    }
+                    PromptTile(
+                        icon = Icons.Default.Star,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        title = "Upgrade to Pro",
+                        subtitle = "Unlock ML insights, all programs, and more",
+                        onClick = onUpgrade,
+                    )
                 }
             }
 
@@ -357,8 +325,8 @@ fun HomeScreen(
 
             if (recentWorkouts.isEmpty()) {
                 item {
-                    // No action button here: the Quick Workout FAB already
-                    // covers it and would overlap a centred button.
+                    // No action button here: the Quick Workout tile above
+                    // already covers it.
                     EmptyState(
                         icon = Icons.Default.FitnessCenter,
                         title = "No workouts yet",
@@ -371,17 +339,12 @@ fun HomeScreen(
                     val dayFormat = remember { SimpleDateFormat("d", Locale.getDefault()) }
                     val monthFormat = remember { SimpleDateFormat("MMM", Locale.getDefault()) }
                     val timeFormat = remember { SimpleDateFormat("EEE, HH:mm", Locale.getDefault()) }
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onViewWorkoutDetail(workoutWithExercises.workout.id) },
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    Tile(
+                        onClick = { onViewWorkoutDetail(workoutWithExercises.workout.id) },
+                        contentPadding = PaddingValues(14.dp),
                     ) {
                         Row(
-                            modifier = Modifier.padding(14.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
@@ -390,19 +353,19 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .size(width = 52.dp, height = 56.dp)
                                     .clip(RoundedCornerShape(14.dp))
-                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
                                     text = dayFormat.format(start),
                                     style = MaterialTheme.typography.titleLarge,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
                                     text = monthFormat.format(start).uppercase(),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                             Column(modifier = Modifier.weight(1f)) {
@@ -412,8 +375,9 @@ fun HomeScreen(
                                 Text(
                                     text = if (exerciseNames.isEmpty()) "${workoutWithExercises.exercises.size} exercises"
                                     else exerciseNames.joinToString(", "),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    maxLines = 2
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Row(
@@ -444,15 +408,12 @@ fun HomeScreen(
                             Icon(
                                 Icons.Default.ChevronRight,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 }
             }
-
-            // Bottom spacing for FAB
-            item { Spacer(modifier = Modifier.height(80.dp)) }
         }
     }
 
@@ -492,6 +453,79 @@ fun HomeScreen(
             },
             onDismiss = { showHomeSheet = false },
         )
+    }
+}
+
+/**
+ * Equal-width quick action tile: icon badge, bold title, one-line muted
+ * subtitle. Two of these sit side by side at the top of the Home list.
+ */
+@Composable
+private fun QuickActionTile(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    tint: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Tile(modifier = modifier, onClick = onClick) {
+        IconBadge(icon = icon, tint = tint)
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * Tappable prompt row: icon badge, title, muted subtitle, trailing chevron.
+ * Used for the "set up a plan" nudge and the Pro upgrade banner.
+ */
+@Composable
+private fun PromptTile(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tint: androidx.compose.ui.graphics.Color,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Tile(modifier = modifier, onClick = onClick) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            IconBadge(icon = icon, tint = tint)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
