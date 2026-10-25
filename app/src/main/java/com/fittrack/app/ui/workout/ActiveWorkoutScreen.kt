@@ -224,8 +224,13 @@ fun ActiveWorkoutScreen(
                             .background(MaterialTheme.colorScheme.primary)
                     )
                     Text(
-                        text = "In progress",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = formatElapsed(uiState.elapsedSeconds),
+                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                    )
+                    Text(
+                        text = "elapsed",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
@@ -273,9 +278,7 @@ fun ActiveWorkoutScreen(
                 EmptyState(
                     icon = Icons.Default.FitnessCenter,
                     title = "No exercises yet",
-                    subtitle = "Add exercises to get started",
-                    actionLabel = "Add Exercise",
-                    onAction = { showExercisePicker = true },
+                    subtitle = "Use Add Exercise below to get started",
                 )
             }
         } else {
@@ -669,4 +672,12 @@ private fun WarmupSectionView(section: WarmupSection) {
             }
         }
     }
+}
+
+/** h:mm:ss once past an hour, otherwise mm:ss. */
+private fun formatElapsed(totalSeconds: Long): String {
+    val h = totalSeconds / 3600
+    val m = (totalSeconds % 3600) / 60
+    val s = totalSeconds % 60
+    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
 }

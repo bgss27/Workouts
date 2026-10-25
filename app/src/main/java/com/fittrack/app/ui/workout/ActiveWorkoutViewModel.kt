@@ -96,6 +96,7 @@ class ActiveWorkoutViewModel(
                     weightUnit = initialWeightUnit,
                 )
             }
+            startTicker()
 
             // If started from a routine, pre-populate exercises
             if (routineId != null) {
@@ -325,6 +326,25 @@ class ActiveWorkoutViewModel(
                 exercises[exerciseIndex] = exercise.copy(sets = sets)
             }
             state.copy(exercises = exercises)
+        }
+    }
+
+    /**
+     * Drives [ActiveWorkoutUiState.elapsedSeconds] once per second while the
+     * workout is active. Derived from wall-clock start time rather than
+     * counting ticks, so backgrounding the app doesn't drift the clock.
+     */
+    private fun startTicker() {
+        viewModelScope.launch {
+            while (_uiState.value.isActive) {
+                val start = _uiState.value.startTimeMillis
+                if (start > 0) {
+                    _uiState.update {
+                        it.copy(elapsedSeconds = (System.currentTimeMillis() - start) / 1000)
+                    }
+                }
+                kotlinx.coroutines.delay(1_000)
+            }
         }
     }
 
