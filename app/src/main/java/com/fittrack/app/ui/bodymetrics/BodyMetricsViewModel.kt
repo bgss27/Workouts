@@ -81,15 +81,17 @@ class BodyMetricsViewModel(
      * mirror that convention here rather than fixing it in two places.
      */
     private suspend fun syncProfileWeight() {
-        val latestKg = repository.getAll().first()
-            .firstNotNullOfOrNull { it.weightKg }
-            ?: return
+        val prefs = appContext.getSharedPreferences("fittrack_profile", Context.MODE_PRIVATE)
+        val latestKg = repository.getAll().first().firstNotNullOfOrNull { it.weightKg }
+        if (latestKg == null) {
+            // No weight left on record: clear the mirror rather than keep a
+            // value from an entry the user just deleted.
+            prefs.edit().remove("weightKg").apply()
+            return
+        }
         val unit = WeightUnits.preferred(appContext)
         val display = BodyUnits(unit).formatNumber(WeightUnits.fromKg(latestKg, unit))
-        appContext.getSharedPreferences("fittrack_profile", Context.MODE_PRIVATE)
-            .edit()
-            .putString("weightKg", display)
-            .apply()
+        prefs.edit().putString("weightKg", display).apply()
     }
 
     class Factory(

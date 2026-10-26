@@ -1,5 +1,6 @@
 package com.fittrack.app.data.repository
 
+import com.fittrack.app.data.db.dao.ExerciseSetRow
 import com.fittrack.app.data.db.dao.WorkoutDao
 import com.fittrack.app.data.db.dao.WorkoutSetDao
 import com.fittrack.app.data.entity.Workout
@@ -95,6 +96,16 @@ class WorkoutRepository(
 
     fun getAllSetsForExercise(exerciseId: Long): Flow<List<WorkoutSet>> =
         workoutSetDao.getAllSetsForExercise(exerciseId)
+
+    /** Every working set of every completed workout, grouped by exercise id. */
+    suspend fun getWorkingSetsByExercise(): Map<Long, List<ExerciseSetRow>> =
+        workoutSetDao.getAllWorkingSetRows().groupBy { it.exerciseId }
+
+    fun getSetRowsForExercise(exerciseId: Long): Flow<List<ExerciseSetRow>> =
+        workoutSetDao.getSetRowsForExercise(exerciseId)
+
+    fun getSetRowsForExerciseInRange(exerciseId: Long, startTime: Long, endTime: Long): Flow<List<ExerciseSetRow>> =
+        workoutSetDao.getSetRowsForExerciseInRange(exerciseId, startTime, endTime)
 
     fun getPersonalBest(exerciseId: Long): Flow<WorkoutSet?> =
         workoutSetDao.getPersonalBest(exerciseId)

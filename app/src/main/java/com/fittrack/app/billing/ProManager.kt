@@ -192,8 +192,8 @@ class ProManager(application: Application) : PurchasesUpdatedListener {
                 .setProductType(BillingClient.ProductType.SUBS)
                 .build()
         ) { result, purchases ->
-            val hasActiveSub = result.responseCode == BillingClient.BillingResponseCode.OK &&
-                purchases.any(::isActiveSubscription)
+            val subsOk = result.responseCode == BillingClient.BillingResponseCode.OK
+            val hasActiveSub = subsOk && purchases.any(::isActiveSubscription)
             // Don't downgrade entitlement based on subs alone — lifetime
             // could still be entitling the user. Combine after the INAPP query.
             client.queryPurchasesAsync(
@@ -201,9 +201,17 @@ class ProManager(application: Application) : PurchasesUpdatedListener {
                     .setProductType(BillingClient.ProductType.INAPP)
                     .build()
             ) { lifetimeResult, lifetimePurchases ->
-                val hasLifetime = lifetimeResult.responseCode == BillingClient.BillingResponseCode.OK &&
-                    lifetimePurchases.any(::isLifetimePurchase)
-                updateProStatus(hasActiveSub || hasLifetime)
+                val lifetimeOk = lifetimeResult.responseCode == BillingClient.BillingResponseCode.OK
+                val hasLifetime = lifetimeOk && lifetimePurchases.any(::isLifetimePurchase)
+                when {
+                    // Any confirmed entitlement grants Pro regardless of the other query.
+                    hasActiveSub || hasLifetime -> updateProStatus(true)
+                    // Only revoke when BOTH queries succeeded and neither found a
+                    // purchase. A failed query (offline, Play outage) must not
+                    // wipe the cached entitlement a paying user relies on.
+                    subsOk && lifetimeOk -> updateProStatus(false)
+                    else -> Unit
+                }
                 purchases.filter { !it.isAcknowledged }.forEach(::acknowledge)
                 lifetimePurchases.filter { !it.isAcknowledged }.forEach(::acknowledge)
             }

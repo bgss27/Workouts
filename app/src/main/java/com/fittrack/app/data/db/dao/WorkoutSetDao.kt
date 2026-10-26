@@ -1,12 +1,24 @@
 package com.fittrack.app.data.db.dao
 
 import androidx.room.Dao
+import androidx.room.Embedded
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import com.fittrack.app.data.entity.WorkoutExercise
 import com.fittrack.app.data.entity.WorkoutSet
 import kotlinx.coroutines.flow.Flow
+
+/**
+ * A working set joined to the exercise it belongs to and the start time of
+ * its workout. One query over this shape replaces per-exercise fan-outs in
+ * the analyzers and gives progress points a real date.
+ */
+data class ExerciseSetRow(
+    @Embedded val set: WorkoutSet,
+    val exerciseId: Long,
+    val workoutStartTime: Long,
+)
 
 @Dao
 interface WorkoutSetDao {
@@ -72,11 +84,44 @@ interface WorkoutSetDao {
     fun getSetsForWorkoutExercise(workoutExerciseId: Long): Flow<List<WorkoutSet>>
 
     @Query("""
-        SELECT ws.*, w.startTime as workoutStartTime FROM workout_sets ws
+        SELECT ws.* FROM workout_sets ws
         INNER JOIN workout_exercises we ON ws.workoutExerciseId = we.id
         INNER JOIN workouts w ON we.workoutId = w.id
         WHERE we.exerciseId = :exerciseId AND ws.isWarmup = 0 AND w.endTime IS NOT NULL
         ORDER BY w.startTime ASC
     """)
     fun getAllSetsForExercise(exerciseId: Long): Flow<List<WorkoutSet>>
+
+    /** Working sets of every completed workout, with exercise id and workout date. */
+    @Query("""
+        SELECT ws.*, we.exerciseId AS exerciseId, w.startTime AS workoutStartTime
+        FROM workout_sets ws
+        INNER JOIN workout_exercises we ON ws.workoutExerciseId = we.id
+        INNER JOIN workouts w ON we.workoutId = w.id
+        WHERE ws.isWarmup = 0 AND w.endTime IS NOT NULL
+        ORDER BY w.startTime ASC, ws.setNumber ASC
+    """)
+    suspend fun getAllWorkingSetRows(): List<ExerciseSetRow>
+
+    /** Same shape for one exercise, all time. */
+    @Query("""
+        SELECT ws.*, we.exerciseId AS exerciseId, w.startTime AS workoutStartTime
+        FROM workout_sets ws
+        INNER JOIN workout_exercises we ON ws.workoutExerciseId = we.id
+        INNER JOIN workouts w ON we.workoutId = w.id
+        WHERE we.exerciseId = :exerciseId AND w.endTime IS NOT NULL
+        ORDER BY w.startTime ASC, ws.setNumber ASC
+    """)
+    fun getSetRowsForExercise(exerciseId: Long): Flow<List<ExerciseSetRow>>
+
+    /** Same shape for one exercise within a workout start-time window. */
+    @Query("""
+        SELECT ws.*, we.exerciseId AS exerciseId, w.startTime AS workoutStartTime
+        FROM workout_sets ws
+        INNER JOIN workout_exercises we ON ws.workoutExerciseId = we.id
+        INNER JOIN workouts w ON we.workoutId = w.id
+        WHERE we.exerciseId = :exerciseId AND w.startTime BETWEEN :startTime AND :endTime
+        ORDER BY w.startTime ASC, ws.setNumber ASC
+    """)
+    fun getSetRowsForExerciseInRange(exerciseId: Long, startTime: Long, endTime: Long): Flow<List<ExerciseSetRow>>
 }

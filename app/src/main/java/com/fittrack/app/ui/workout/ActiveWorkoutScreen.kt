@@ -270,7 +270,8 @@ fun ActiveWorkoutScreen(
                     onClick = { showExercisePicker = true },
                 )
                 PrimaryButton(
-                    text = "Finish Workout",
+                        text = "Finish Workout",
+                        enabled = finishState == FinishState.NotFinished,
                     onClick = { showFinishDialog = true },
                 )
             }

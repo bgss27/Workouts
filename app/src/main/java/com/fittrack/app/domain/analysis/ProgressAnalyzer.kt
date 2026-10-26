@@ -3,6 +3,7 @@ package com.fittrack.app.domain.analysis
 import com.fittrack.app.data.entity.Exercise
 import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.data.entity.WorkoutSet
+import com.fittrack.app.data.db.dao.ExerciseSetRow
 import com.fittrack.app.data.repository.ExerciseRepository
 import com.fittrack.app.data.repository.RoutineRepository
 import com.fittrack.app.data.repository.UserPlanRepository
@@ -27,53 +28,55 @@ class ProgressAnalyzer(
     }
 
     fun getProgressForExercise(exerciseId: Long, startTime: Long, endTime: Long): Flow<List<ProgressDataPoint>> {
-        return workoutRepository.getSetsForExerciseInRange(exerciseId, startTime, endTime).map { sets ->
-            groupSetsIntoSessions(sets)
+        return workoutRepository.getSetRowsForExerciseInRange(exerciseId, startTime, endTime).map { rows ->
+            groupRowsIntoSessions(rows)
         }
     }
 
     fun getProgressForExerciseAllTime(exerciseId: Long): Flow<List<ProgressDataPoint>> {
-        return workoutRepository.getAllSetsForExercise(exerciseId).map { sets ->
-            groupSetsIntoSessions(sets)
+        return workoutRepository.getSetRowsForExercise(exerciseId).map { rows ->
+            groupRowsIntoSessions(rows)
         }
     }
 
-    private fun groupSetsIntoSessions(sets: List<WorkoutSet>): List<ProgressDataPoint> {
-        if (sets.isEmpty()) return emptyList()
+    /**
+     * Progress series for every exercise that has logged sets, from ONE query.
+     * Exercises without sets are absent from the map. Use this for list
+     * screens (sparklines) instead of calling [getProgressForExerciseAllTime]
+     * per exercise.
+     */
+    suspend fun getProgressForAllExercises(): Map<Long, List<ProgressDataPoint>> =
+        workoutRepository.getWorkingSetsByExercise().mapValues { (_, rows) -> groupRowsIntoSessions(rows) }
 
-        return sets.groupBy { it.workoutExerciseId }.map { (_, sessionSets) ->
-            val workingSets = sessionSets.filter { !it.isWarmup }
-            if (workingSets.isEmpty()) return@map null
-
-            val maxSet = workingSets.maxByOrNull { estimateOneRepMax(it.weightKg, it.reps) }!!
-            val estimated1RM = estimateOneRepMax(maxSet.weightKg, maxSet.reps)
-            val totalVolume = workingSets.sumOf { it.weightKg * it.reps }
-            val maxWeight = workingSets.maxOf { it.weightKg }
-
+    /** One point per workout-exercise session, dated by the workout's start time. */
+    private fun groupRowsIntoSessions(rows: List<ExerciseSetRow>): List<ProgressDataPoint> {
+        if (rows.isEmpty()) return emptyList()
+        return rows.groupBy { it.set.workoutExerciseId }.mapNotNull { (_, sessionRows) ->
+            val workingSets = sessionRows.map { it.set }.filter { !it.isWarmup }
+            if (workingSets.isEmpty()) return@mapNotNull null
+            val maxSet = workingSets.maxBy { estimateOneRepMax(it.weightKg, it.reps) }
             ProgressDataPoint(
-                date = System.currentTimeMillis(), // Will be replaced with actual workout date
-                estimated1RM = estimated1RM,
-                totalVolume = totalVolume,
-                maxWeight = maxWeight,
+                date = sessionRows.first().workoutStartTime,
+                estimated1RM = estimateOneRepMax(maxSet.weightKg, maxSet.reps),
+                totalVolume = workingSets.sumOf { it.weightKg * it.reps },
+                maxWeight = workingSets.maxOf { it.weightKg },
                 totalSets = workingSets.size,
                 totalReps = workingSets.sumOf { it.reps }
             )
-        }.filterNotNull()
+        }.sortedBy { it.date }
     }
 
     suspend fun generateSuggestions(): List<Suggestion> {
         val suggestions = mutableListOf<Suggestion>()
-        val exercises = exerciseRepository.getAllExercises().first()
-
-        for (exercise in exercises) {
-            val sets = workoutRepository.getAllSetsForExercise(exercise.id).first()
-            if (sets.isEmpty()) continue
-
-            val sessionSets = sets.groupBy { it.workoutExerciseId }
-            if (sessionSets.size < MIN_SESSIONS_FOR_ANALYSIS) continue
-
-            val sessions = sessionSets.values.toList()
-            analyzeExerciseProgress(exercise, sessions, suggestions)
+        // One query for every logged set, then analyze only exercises that
+        // actually have history — not the whole ~800-entry catalog.
+        val setsByExercise = workoutRepository.getWorkingSetsByExercise()
+        if (setsByExercise.isNotEmpty()) {
+            val exercises = exerciseRepository.getAllExercises().first().associateBy { it.id }
+            for ((exerciseId, rows) in setsByExercise) {
+                val exercise = exercises[exerciseId] ?: continue
+                analyzeIfEnoughSessions(exercise, rows, suggestions)
+            }
         }
 
         // Analyze muscle group frequency
@@ -85,22 +88,28 @@ class ProgressAnalyzer(
     suspend fun getSuggestionsForMuscleGroup(muscleGroup: MuscleGroup): List<Suggestion> {
         val suggestions = mutableListOf<Suggestion>()
         val exercises = exerciseRepository.getByMuscleGroup(muscleGroup).first()
+        val setsByExercise = workoutRepository.getWorkingSetsByExercise()
 
         for (exercise in exercises) {
-            val sets = workoutRepository.getAllSetsForExercise(exercise.id).first()
-            if (sets.isEmpty()) continue
-
-            val sessionSets = sets.groupBy { it.workoutExerciseId }
-            if (sessionSets.size < MIN_SESSIONS_FOR_ANALYSIS) continue
-
-            val sessions = sessionSets.values.toList()
-            analyzeExerciseProgress(exercise, sessions, suggestions)
+            val rows = setsByExercise[exercise.id] ?: continue
+            analyzeIfEnoughSessions(exercise, rows, suggestions)
         }
 
         // Suggest new exercises for the muscle group
-        suggestNewExercises(muscleGroup, exercises, suggestions)
+        suggestNewExercises(muscleGroup, exercises, setsByExercise.keys, suggestions)
 
         return suggestions.sortedBy { it.priority }
+    }
+
+    private fun analyzeIfEnoughSessions(
+        exercise: Exercise,
+        rows: List<ExerciseSetRow>,
+        suggestions: MutableList<Suggestion>,
+    ) {
+        val sessionSets = rows.groupBy { it.set.workoutExerciseId }
+        if (sessionSets.size < MIN_SESSIONS_FOR_ANALYSIS) return
+        val sessions = sessionSets.values.map { session -> session.map { it.set } }
+        analyzeExerciseProgress(exercise, sessions, suggestions)
     }
 
     private fun analyzeExerciseProgress(
@@ -251,17 +260,13 @@ class ProgressAnalyzer(
         return planned
     }
 
-    private suspend fun suggestNewExercises(
+    private fun suggestNewExercises(
         muscleGroup: MuscleGroup,
-        currentExercises: List<Exercise>,
+        groupExercises: List<Exercise>,
+        exerciseIdsWithHistory: Set<Long>,
         suggestions: MutableList<Suggestion>
     ) {
-        val allExercises = exerciseRepository.getByMuscleGroup(muscleGroup).first()
-        val usedExerciseIds = currentExercises.filter { exercise ->
-            workoutRepository.getAllSetsForExercise(exercise.id).first().isNotEmpty()
-        }.map { it.id }.toSet()
-
-        val unusedExercises = allExercises.filter { it.id !in usedExerciseIds }
+        val unusedExercises = groupExercises.filter { it.id !in exerciseIdsWithHistory }
         unusedExercises.take(2).forEach { exercise ->
             suggestions.add(Suggestion.TryExercise(
                 exerciseName = exercise.name,

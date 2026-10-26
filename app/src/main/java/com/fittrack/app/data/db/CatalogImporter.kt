@@ -8,6 +8,8 @@ import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.data.repository.ExerciseImageRepository
 import com.fittrack.app.data.repository.OpenExerciseDb
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -29,10 +31,13 @@ object CatalogImporter {
     private const val KEY_VERSION = "imported_version"
     private const val ASSET = "free_exercise_db.json"
 
+    /** onCreate and the startup safety net can both call in; serialize them. */
+    private val lock = Mutex()
+
     /** Run once per [CATALOG_VERSION] on existing installs. */
-    suspend fun importIfNeeded(context: Context, dao: ExerciseDao) {
+    suspend fun importIfNeeded(context: Context, dao: ExerciseDao) = lock.withLock {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (prefs.getInt(KEY_VERSION, 0) >= CATALOG_VERSION) return
+        if (prefs.getInt(KEY_VERSION, 0) >= CATALOG_VERSION) return@withLock
         importMissing(context, dao)
         prefs.edit().putInt(KEY_VERSION, CATALOG_VERSION).apply()
     }

@@ -38,11 +38,14 @@ class CalendarViewModel(
     private val _selectedDate = MutableStateFlow<LocalDate?>(LocalDate.now())
     val selectedDate: StateFlow<LocalDate?> = _selectedDate.asStateFlow()
 
-    /** All completed/in-progress workouts grouped by their local-date start. */
+    /** Completed workouts grouped by their local-date start. */
     private val workoutsByDate: StateFlow<Map<LocalDate, List<WorkoutWithExercises>>> =
         workoutRepository.getAllWorkouts()
             .map { list ->
-                list.groupBy { Instant.ofEpochMilli(it.workout.startTime).atZone(ZoneId.systemDefault()).toLocalDate() }
+                // Only finished sessions count; an abandoned in-progress row
+                // must not light up a day or suppress the missed-day rule.
+                list.filter { it.workout.endTime != null }
+                    .groupBy { Instant.ofEpochMilli(it.workout.startTime).atZone(ZoneId.systemDefault()).toLocalDate() }
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 

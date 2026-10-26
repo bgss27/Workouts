@@ -85,8 +85,15 @@ class ActiveWorkoutViewModel(
     private val _finishState = MutableStateFlow<FinishState>(FinishState.NotFinished)
     val finishState: StateFlow<FinishState> = _finishState
 
+    /**
+     * Completes once the workout row exists. Every mutation that needs
+     * [ActiveWorkoutUiState.workoutId] joins this first so a tap in the
+     * first few hundred ms can't write rows against workoutId = 0.
+     */
+    private val startup: kotlinx.coroutines.Job
+
     init {
-        viewModelScope.launch {
+        startup = viewModelScope.launch {
             // Start workout
             val startMillis = System.currentTimeMillis()
             val workoutId = workoutRepository.startWorkout()
@@ -156,12 +163,14 @@ class ActiveWorkoutViewModel(
     fun createAndAddExercise(exercise: Exercise) {
         viewModelScope.launch {
             val id = exerciseRepository.insert(exercise)
-            addExercise(exercise.copy(id = id))
+            startup.join()
+            addExerciseInternal(_uiState.value.workoutId, exercise.copy(id = id))
         }
     }
 
     fun addExercise(exercise: Exercise) {
         viewModelScope.launch {
+            startup.join()
             addExerciseInternal(_uiState.value.workoutId, exercise)
         }
     }
@@ -208,6 +217,7 @@ class ActiveWorkoutViewModel(
      */
     fun swapExercise(index: Int, newExercise: Exercise) {
         viewModelScope.launch {
+            startup.join()
             val state = _uiState.value
             if (index !in state.exercises.indices) return@launch
             val current = state.exercises[index]
@@ -363,11 +373,16 @@ class ActiveWorkoutViewModel(
     }
 
     fun finishWorkout() {
+        // Re-entry guard: a second tap while saving must not write the sets
+        // again (double volume, duplicate Health Connect session).
+        if (_finishState.value != FinishState.NotFinished) return
+        _finishState.value = FinishState.Saving
         viewModelScope.launch {
-            _finishState.value = FinishState.Saving
+            startup.join()
 
             // Save all sets to database
             val isLbs = _uiState.value.weightUnit == "lbs"
+            var savedSets = 0
             for (exerciseState in _uiState.value.exercises) {
                 var setNumber = 0
                 for (set in exerciseState.sets) {
@@ -385,11 +400,21 @@ class ActiveWorkoutViewModel(
                         isWarmup = set.isWarmup,
                         rpe = if (set.isWarmup) null else set.rpe,
                     )
+                    savedSets++
                 }
             }
             val endMillis = System.currentTimeMillis()
             val startMillis = _uiState.value.startTimeMillis
             val workoutId = _uiState.value.workoutId
+
+            // Nothing logged: don't record a completed workout that would
+            // inflate counters and the calendar. Drop the row and leave.
+            if (savedSets == 0) {
+                workoutRepository.deleteWorkout(workoutId)
+                _uiState.update { it.copy(isActive = false) }
+                _finishState.value = FinishState.Done(emptyList())
+                return@launch
+            }
             workoutRepository.finishWorkout(workoutId)
 
             // Mirror to Health Connect. Service no-ops if disabled / not granted.

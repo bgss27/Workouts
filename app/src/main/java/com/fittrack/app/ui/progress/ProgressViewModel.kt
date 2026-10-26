@@ -47,15 +47,12 @@ class ProgressViewModel(
         }
     }
 
-    private suspend fun refreshSparklines(exercises: List<Exercise>) {
-        val out = mutableMapOf<Long, List<Double>>()
-        for (exercise in exercises) {
-            val points = progressAnalyzer.getProgressForExerciseAllTime(exercise.id).first()
-            if (points.size >= 2) {
-                out[exercise.id] = points.takeLast(8).map { it.estimated1RM }
-            }
-        }
-        _sparklineData.value = out
+    private suspend fun refreshSparklines(@Suppress("UNUSED_PARAMETER") exercises: List<Exercise>) {
+        // One query covers every exercise with history; the catalog list is
+        // irrelevant since exercises without sets have no sparkline.
+        _sparklineData.value = progressAnalyzer.getProgressForAllExercises()
+            .filterValues { it.size >= 2 }
+            .mapValues { (_, points) -> points.takeLast(8).map { it.estimated1RM } }
     }
 
     fun selectMuscleGroup(group: MuscleGroup?) {
