@@ -397,6 +397,7 @@ private data class FeatureItem(
 private fun featureItems(): List<FeatureItem> = listOf(
     FeatureItem(Icons.Default.Psychology, FeatureGate.INSIGHTS.displayName, FeatureGate.INSIGHTS.description),
     FeatureItem(Icons.Default.ShowChart, FeatureGate.FULL_HISTORY.displayName, FeatureGate.FULL_HISTORY.description),
+    FeatureItem(Icons.Default.AddCircle, FeatureGate.CUSTOM_EXERCISES.displayName, FeatureGate.CUSTOM_EXERCISES.description),
     FeatureItem(Icons.Default.MonitorWeight, FeatureGate.BODY_METRICS.displayName, FeatureGate.BODY_METRICS.description),
     FeatureItem(Icons.Default.Sync, FeatureGate.INTEGRATIONS.displayName, FeatureGate.INTEGRATIONS.description),
     FeatureItem(Icons.Default.FileDownload, FeatureGate.EXPORT.displayName, FeatureGate.EXPORT.description),

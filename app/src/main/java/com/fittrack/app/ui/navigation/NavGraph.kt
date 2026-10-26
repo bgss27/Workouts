@@ -57,7 +57,11 @@ fun NavGraph(
         }
 
         composable(Screen.Exercises.route) {
-            ExercisesScreen(appModule = appModule)
+            ExercisesScreen(
+                appModule = appModule,
+                proManager = proManager,
+                onUpgrade = { navController.navigate(Screen.Upgrade.route) },
+            )
         }
 
         composable(Screen.Calendar.route) {
@@ -118,6 +122,8 @@ fun NavGraph(
                 .mapNotNull { it.trim().toLongOrNull() }
             ActiveWorkoutScreen(
                 appModule = appModule,
+                proManager = proManager,
+                onUpgrade = { navController.navigate(Screen.Upgrade.route) },
                 routineId = if (routineId == -1L) null else routineId,
                 initialExerciseIds = initialExerciseIds,
                 onWorkoutComplete = { navController.popBackStack() },

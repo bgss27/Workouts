@@ -29,6 +29,9 @@ import com.fittrack.app.data.repository.ExerciseImageRepository
 import com.fittrack.app.domain.analysis.WarmupCatalog
 import com.fittrack.app.domain.analysis.WarmupSection
 import com.fittrack.app.di.AppModule
+import com.fittrack.app.billing.FreeLimits
+import com.fittrack.app.billing.ProManager
+import com.fittrack.app.ui.components.CustomExerciseSheet
 import com.fittrack.app.ui.components.DetailHeader
 import com.fittrack.app.ui.components.EmptyState
 import com.fittrack.app.ui.components.ExerciseCard
@@ -50,6 +53,8 @@ private const val DEFAULT_REST_SECONDS = 90L
 @Composable
 fun ActiveWorkoutScreen(
     appModule: AppModule,
+    proManager: ProManager,
+    onUpgrade: () -> Unit,
     routineId: Long?,
     initialExerciseIds: List<Long> = emptyList(),
     onWorkoutComplete: () -> Unit,
@@ -80,6 +85,9 @@ fun ActiveWorkoutScreen(
     val guidance = viewModel.timeGuidance
 
     var showExercisePicker by remember { mutableStateOf(false) }
+    var showCreateExercise by remember { mutableStateOf(false) }
+    val customExerciseCount by viewModel.customExerciseCount.collectAsState()
+    val isProUser by proManager.isPro.collectAsState()
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showFinishDialog by remember { mutableStateOf(false) }
     var showTipsExpanded by remember { mutableStateOf(false) }
@@ -517,6 +525,27 @@ fun ActiveWorkoutScreen(
                     )
 
                     LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                        item {
+                            ListItem(
+                                headlineContent = {
+                                    Text("Create custom exercise", color = MaterialTheme.colorScheme.primary)
+                                },
+                                leadingContent = {
+                                    Icon(
+                                        Icons.Default.AddCircle,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showExercisePicker = false
+                                        showCreateExercise = true
+                                    },
+                            )
+                        }
                         items(availableExercises.size) { index ->
                             val exercise = availableExercises[index]
                             val thumbUrl = remember(exercise.name) {
@@ -573,6 +602,16 @@ fun ActiveWorkoutScreen(
                     Text("Close")
                 }
             }
+        )
+    }
+
+    if (showCreateExercise) {
+        CustomExerciseSheet(
+            initial = null,
+            limitReached = !isProUser && customExerciseCount >= FreeLimits.CUSTOM_EXERCISES,
+            onSave = { viewModel.createAndAddExercise(it); showCreateExercise = false },
+            onDismiss = { showCreateExercise = false },
+            onUpgrade = { showCreateExercise = false; onUpgrade() },
         )
     }
 

@@ -1,6 +1,8 @@
 package com.fittrack.app.data.db.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Update
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -50,4 +52,22 @@ interface ExerciseDao {
 
     @Insert
     suspend fun insert(exercise: Exercise): Long
+
+    @Update
+    suspend fun update(exercise: Exercise)
+
+    @Delete
+    suspend fun delete(exercise: Exercise)
+
+    @Query("SELECT COUNT(*) FROM exercises WHERE isCustom = 1")
+    fun getCustomCount(): Flow<Int>
+
+    /** How many logged workouts and saved routines reference this exercise. */
+    @Query(
+        """
+        SELECT (SELECT COUNT(*) FROM workout_exercises WHERE exerciseId = :id)
+             + (SELECT COUNT(*) FROM routine_exercises WHERE exerciseId = :id)
+        """
+    )
+    suspend fun usageCount(id: Long): Int
 }

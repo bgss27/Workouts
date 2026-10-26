@@ -13,16 +13,10 @@ enum class FeatureGate(val displayName: String, val description: String) {
         "Plateau detection, frequency analysis, and personalized recommendations"
     ),
 
-    /** More than one active program at a time. */
-    UNLIMITED_PROGRAM_SLOTS(
-        "Multiple Active Programs",
-        "Run more than one workout program at the same time"
-    ),
-
-    /** Save more than the free tier of custom routines. */
-    UNLIMITED_ROUTINES(
-        "Unlimited Custom Routines",
-        "Build and save as many custom routines as you want"
+    /** Create more than the free tier of user-defined exercises. */
+    CUSTOM_EXERCISES(
+        "Unlimited Custom Exercises",
+        "Create as many of your own exercises as you want (free includes ${FreeLimits.CUSTOM_EXERCISES})"
     ),
 
     /** Workout history and progress charts beyond the rolling 30-day window. */
@@ -47,11 +41,14 @@ enum class FeatureGate(val displayName: String, val description: String) {
     INTEGRATIONS(
         "Health Sync",
         "Sync finished workouts to your phone's Health store"
-    ),
+    )
+}
 
-    /** Wear OS / Watch companion. */
-    WATCH(
-        "Watch Companion",
-        "Quick-log sets and rest timer on your watch"
-    ),
+/**
+ * Free-tier caps. Every number here must be enforced somewhere in the UI and
+ * mirrored in the Upgrade screen copy; a gate that isn't enforced is a
+ * promise the paywall can't keep.
+ */
+object FreeLimits {
+    const val CUSTOM_EXERCISES = 7
 }

@@ -258,13 +258,14 @@ fun PillChip(
 @Composable
 fun PillChipRow(
     modifier: Modifier = Modifier,
+    horizontalPadding: androidx.compose.ui.unit.Dp = ScreenGutter,
     content: @Composable RowScope.() -> Unit,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = ScreenGutter, vertical = 4.dp),
+            .padding(horizontal = horizontalPadding, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         content = content,
     )

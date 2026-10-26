@@ -22,6 +22,41 @@ class ExercisesViewModel(
     private val _exercises = MutableStateFlow<List<Exercise>>(emptyList())
     val exercises: StateFlow<List<Exercise>> = _exercises
 
+    /** Number of user-created exercises, for the free-tier cap. */
+    val customCount: StateFlow<Int> = exerciseRepository.getCustomCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    /** One-shot user feedback (e.g. delete refused). */
+    private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    val messages: SharedFlow<String> = _messages.asSharedFlow()
+
+    /** Insert or update a custom exercise, then refresh the visible list. */
+    fun saveCustom(exercise: Exercise) {
+        viewModelScope.launch {
+            if (exercise.id == 0L) exerciseRepository.insert(exercise)
+            else exerciseRepository.update(exercise)
+            reload()
+        }
+    }
+
+    fun deleteCustom(exercise: Exercise) {
+        viewModelScope.launch {
+            val removed = exerciseRepository.deleteCustom(exercise)
+            if (removed) {
+                reload()
+            } else {
+                _messages.emit("${exercise.name} is used in a workout or routine and can't be deleted.")
+            }
+        }
+    }
+
+    private suspend fun reload() {
+        val group = _selectedMuscleGroup.value
+        val base = if (group == null) exerciseRepository.getAllExercises().first()
+        else exerciseRepository.getByMuscleGroup(group).first()
+        applySearch(base)
+    }
+
     val groupedExercises: StateFlow<Map<MuscleGroup, List<Exercise>>> = _exercises
         .map { list -> list.groupBy { it.muscleGroup } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())

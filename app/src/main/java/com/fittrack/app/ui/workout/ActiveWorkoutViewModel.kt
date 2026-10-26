@@ -14,6 +14,8 @@ import com.fittrack.app.domain.analysis.RoutineSuggestionEngine
 import com.fittrack.app.domain.analysis.TimeBasedGuidance
 import com.fittrack.app.domain.analysis.TimeOfDayAdvisor
 import com.fittrack.app.ui.components.SetData
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -143,6 +145,18 @@ class ActiveWorkoutViewModel(
             } else {
                 exerciseRepository.searchByName(query).first()
             }.let { _availableExercises.value = it }
+        }
+    }
+
+    /** Number of user-created exercises, for the free-tier cap in the picker. */
+    val customExerciseCount: StateFlow<Int> = exerciseRepository.getCustomCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    /** Persist a new custom exercise and add it to this workout in one step. */
+    fun createAndAddExercise(exercise: Exercise) {
+        viewModelScope.launch {
+            val id = exerciseRepository.insert(exercise)
+            addExercise(exercise.copy(id = id))
         }
     }
 

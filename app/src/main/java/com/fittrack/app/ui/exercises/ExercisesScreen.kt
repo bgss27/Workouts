@@ -18,7 +18,10 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.fittrack.app.billing.FreeLimits
+import com.fittrack.app.billing.ProManager
 import com.fittrack.app.data.entity.Exercise
+import com.fittrack.app.ui.components.CustomExerciseSheet
 import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.domain.model.ExerciseGuideData
@@ -32,7 +35,9 @@ import com.fittrack.app.ui.components.fitTextFieldColors
 
 @Composable
 fun ExercisesScreen(
-    appModule: AppModule
+    appModule: AppModule,
+    proManager: ProManager,
+    onUpgrade: () -> Unit,
 ) {
     val viewModel: ExercisesViewModel = viewModel(
         factory = ExercisesViewModel.Factory(appModule.exerciseRepository)
@@ -42,15 +47,37 @@ fun ExercisesScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val exercises by viewModel.exercises.collectAsState()
     val groupedExercises by viewModel.groupedExercises.collectAsState()
+    val customCount by viewModel.customCount.collectAsState()
+    val isPro by proManager.isPro.collectAsState()
 
     val showGrouped = selectedMuscleGroup == null && searchQuery.isBlank()
 
+    // null = sheet closed; Exercise(id = 0) = creating; otherwise editing.
+    var editing by remember { mutableStateOf<Exercise?>(null) }
+    var creating by remember { mutableStateOf(false) }
+    val limitReached = !isPro && customCount >= FreeLimits.CUSTOM_EXERCISES
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(viewModel) {
+        viewModel.messages.collect { snackbarHostState.showSnackbar(it) }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             ScreenHeader(
                 title = "Exercises",
-                eyebrow = "${exercises.size} exercises"
+                eyebrow = if (exercises.size == 1) "1 exercise" else "${exercises.size} exercises",
+                actions = {
+                    IconButton(onClick = { creating = true }) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "New custom exercise",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             )
         }
     ) { padding ->
@@ -112,16 +139,27 @@ fun ExercisesScreen(
                         MuscleGroupHeader(group, groupExercises.size)
                     }
                     items(groupExercises.sortedBy { it.name }) { exercise ->
-                        ExerciseDetailCard(exercise)
+                        ExerciseDetailCard(exercise, onEdit = { editing = exercise })
                     }
                 }
             } else {
                 // Flat filtered list
                 items(exercises.sortedBy { it.name }) { exercise ->
-                    ExerciseDetailCard(exercise)
+                    ExerciseDetailCard(exercise, onEdit = { editing = exercise })
                 }
             }
         }
+    }
+
+    if (creating || editing != null) {
+        CustomExerciseSheet(
+            initial = editing,
+            limitReached = limitReached,
+            onSave = { viewModel.saveCustom(it); creating = false; editing = null },
+            onDismiss = { creating = false; editing = null },
+            onUpgrade = { creating = false; editing = null; onUpgrade() },
+            onDelete = editing?.let { ex -> { viewModel.deleteCustom(ex); editing = null } },
+        )
     }
 }
 
@@ -162,7 +200,7 @@ private fun MuscleGroupHeader(group: MuscleGroup, count: Int) {
 }
 
 @Composable
-private fun ExerciseDetailCard(exercise: Exercise) {
+private fun ExerciseDetailCard(exercise: Exercise, onEdit: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val chevronRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
@@ -184,11 +222,34 @@ private fun ExerciseDetailCard(exercise: Exercise) {
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Text(
-                    text = exercise.muscleGroup.displayName,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = exercise.muscleGroup.displayName,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    if (exercise.isCustom) {
+                        Text(
+                            text = "CUSTOM",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.16f))
+                                .padding(horizontal = 6.dp, vertical = 1.dp)
+                        )
+                    }
+                }
+            }
+            if (exercise.isCustom) {
+                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Edit exercise",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
             Icon(
                 Icons.Default.ExpandMore,
