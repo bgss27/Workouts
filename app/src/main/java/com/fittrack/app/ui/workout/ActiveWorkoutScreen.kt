@@ -107,31 +107,21 @@ fun ActiveWorkoutScreen(
     var showPlateCalcSheet by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
 
-    // Accordion: only one exercise card is expanded at a time. Defaults to the
-    // first exercise; auto-advances to the next exercise that still has
-    // incomplete working sets when the user finishes the current one. A null
-    // value means the user explicitly collapsed everything and we don't
-    // re-open without an explicit tap.
+    // Accordion: one exercise expanded at a time, driven by the user's taps.
+    // It never auto-advances on set completion — every exercise starts with
+    // one set row, so advancing on "all sets complete" collapsed the card the
+    // moment the first set was typed and the user couldn't add set two.
     var expandedIndex by rememberSaveable { mutableStateOf<Int?>(0) }
-    LaunchedEffect(uiState.exercises) {
+    LaunchedEffect(uiState.exercises.size) {
+        val cur = expandedIndex
         if (uiState.exercises.isEmpty()) {
             expandedIndex = null
-            return@LaunchedEffect
-        }
-        val cur = expandedIndex
-        if (cur == null) return@LaunchedEffect
-        if (cur !in uiState.exercises.indices) {
+        } else if (cur != null && cur !in uiState.exercises.indices) {
+            // The expanded exercise was removed; open the last one.
             expandedIndex = uiState.exercises.lastIndex
-            return@LaunchedEffect
-        }
-        val working = uiState.exercises[cur].sets.filter { !it.isWarmup }
-        val allDone = working.isNotEmpty() && working.all { it.isCompleted }
-        if (allDone) {
-            val next = ((cur + 1)..uiState.exercises.lastIndex).firstOrNull { i ->
-                val ws = uiState.exercises[i].sets.filter { !it.isWarmup }
-                ws.isEmpty() || ws.any { !it.isCompleted }
-            }
-            if (next != null) expandedIndex = next
+        } else if (cur == null && uiState.exercises.size == 1) {
+            // First exercise added to an empty workout: open it.
+            expandedIndex = 0
         }
     }
 

@@ -122,7 +122,9 @@ class ActiveWorkoutViewModel(
                 routineSuggestionEngine.getRoutineById(routineId).first()?.let { routine ->
                     for (routineExercise in routine.exercises.sortedBy { it.orderIndex }) {
                         val exercise = exerciseRepository.getById(routineExercise.exerciseId) ?: continue
-                        addExerciseInternal(workoutId, exercise)
+                        // Pre-fill the prescribed number of set rows (e.g. 4x6-8
+                        // shows four rows) so the user logs instead of adding.
+                        addExerciseInternal(workoutId, exercise, routineExercise.suggestedSets.coerceIn(1, 10))
                     }
                 }
             } else if (initialExerciseIds.isNotEmpty()) {
@@ -185,7 +187,7 @@ class ActiveWorkoutViewModel(
         }
     }
 
-    private suspend fun addExerciseInternal(workoutId: Long, exercise: Exercise) {
+    private suspend fun addExerciseInternal(workoutId: Long, exercise: Exercise, setRows: Int = 1) {
         val orderIndex = _uiState.value.exercises.size
         val workoutExerciseId = workoutRepository.addExerciseToWorkout(
             workoutId, exercise.id, orderIndex
@@ -195,7 +197,7 @@ class ActiveWorkoutViewModel(
                 exercises = state.exercises + WorkoutExerciseUiState(
                     workoutExerciseId = workoutExerciseId,
                     exercise = exercise,
-                    sets = listOf(SetData())
+                    sets = List(setRows.coerceAtLeast(1)) { SetData() }
                 )
             )
         }
