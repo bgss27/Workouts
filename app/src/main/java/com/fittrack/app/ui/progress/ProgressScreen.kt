@@ -115,13 +115,27 @@ fun ProgressScreen(
                 }
             }
 
-            // Exercise list
-            item {
-                Text(
-                    text = "Select an exercise to view progress",
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
+            // Exercise list — only exercises with logged sets appear.
+            if (exercises.isEmpty() && selectedExercise == null) {
+                item {
+                    EmptyState(
+                        icon = Icons.Default.ShowChart,
+                        title = "No progress yet",
+                        subtitle = if (selectedMuscleGroup == null)
+                            "Finish a workout and the exercises you logged will show up here with their trend."
+                        else
+                            "No logged ${selectedMuscleGroup!!.displayName.lowercase()} exercises yet.",
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            } else {
+                item {
+                    Text(
+                        text = "Exercises you've logged",
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
             }
 
             items(exercises) { exercise ->

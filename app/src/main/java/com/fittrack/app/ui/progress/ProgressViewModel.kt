@@ -19,8 +19,21 @@ class ProgressViewModel(
     private val _selectedMuscleGroup = MutableStateFlow<MuscleGroup?>(null)
     val selectedMuscleGroup: StateFlow<MuscleGroup?> = _selectedMuscleGroup
 
-    private val _exercises = MutableStateFlow<List<Exercise>>(emptyList())
-    val exercises: StateFlow<List<Exercise>> = _exercises
+    private val _allExercises = MutableStateFlow<List<Exercise>>(emptyList())
+
+    /** Ids of exercises that have at least one logged working set. */
+    private val _historyIds = MutableStateFlow<Set<Long>>(emptySet())
+
+    /**
+     * Exercises shown in the picker: only those with logged history, further
+     * narrowed by the selected muscle group. The full catalog is ~800 entries
+     * and only ones with sets can chart anything.
+     */
+    val exercises: StateFlow<List<Exercise>> = combine(
+        _allExercises, _selectedMuscleGroup, _historyIds,
+    ) { all, group, history ->
+        all.filter { it.id in history && (group == null || it.muscleGroup == group) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _selectedExercise = MutableStateFlow<Exercise?>(null)
     val selectedExercise: StateFlow<Exercise?> = _selectedExercise
@@ -41,7 +54,7 @@ class ProgressViewModel(
     init {
         viewModelScope.launch {
             exerciseRepository.getAllExercises().collect { list ->
-                _exercises.value = list
+                _allExercises.value = list
                 refreshSparklines(list)
             }
         }
@@ -50,7 +63,9 @@ class ProgressViewModel(
     private suspend fun refreshSparklines(@Suppress("UNUSED_PARAMETER") exercises: List<Exercise>) {
         // One query covers every exercise with history; the catalog list is
         // irrelevant since exercises without sets have no sparkline.
-        _sparklineData.value = progressAnalyzer.getProgressForAllExercises()
+        val progress = progressAnalyzer.getProgressForAllExercises()
+        _historyIds.value = progress.keys
+        _sparklineData.value = progress
             .filterValues { it.size >= 2 }
             .mapValues { (_, points) -> points.takeLast(8).map { it.estimated1RM } }
     }
@@ -59,13 +74,6 @@ class ProgressViewModel(
         _selectedMuscleGroup.value = group
         _selectedExercise.value = null
         _progressData.value = emptyList()
-        viewModelScope.launch {
-            _exercises.value = if (group == null) {
-                exerciseRepository.getAllExercises().first()
-            } else {
-                exerciseRepository.getByMuscleGroup(group).first()
-            }
-        }
     }
 
     fun selectExercise(exercise: Exercise) {
