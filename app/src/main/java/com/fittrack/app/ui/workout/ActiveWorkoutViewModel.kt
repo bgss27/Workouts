@@ -14,6 +14,12 @@ import com.fittrack.app.domain.analysis.RoutineSuggestionEngine
 import com.fittrack.app.domain.analysis.TimeBasedGuidance
 import com.fittrack.app.domain.analysis.TimeOfDayAdvisor
 import com.fittrack.app.ui.components.SetData
+import com.fittrack.app.data.WeightUnits
+import com.fittrack.app.domain.analysis.StreakCalculator
+import com.fittrack.app.share.ShareSummary
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.*
@@ -48,8 +54,12 @@ private const val KG_PER_LB = 0.45359237
 sealed class FinishState {
     object NotFinished : FinishState()
     object Saving : FinishState()
-    /** Workout saved. [prs] is empty when no 1RM personal records were hit. */
-    data class Done(val prs: List<PRResult>) : FinishState()
+    /**
+     * Workout saved. [prs] is empty when no 1RM personal records were hit.
+     * [summary] feeds the celebration dialog and the share card; null when
+     * nothing was logged (the session was dropped rather than recorded).
+     */
+    data class Done(val prs: List<PRResult>, val summary: ShareSummary? = null) : FinishState()
 }
 
 class ActiveWorkoutViewModel(
@@ -427,10 +437,55 @@ class ActiveWorkoutViewModel(
             // PR detection runs after the workout's sets are persisted so it
             // sees them. Failures here mustn't block the finish flow — wrap.
             val prs = runCatching { progressAnalyzer.detectPRs(workoutId) }.getOrDefault(emptyList())
+            val summary = runCatching { buildShareSummary(startMillis, endMillis, savedSets, prs) }.getOrNull()
 
             _uiState.update { it.copy(isActive = false) }
-            _finishState.value = FinishState.Done(prs)
+            _finishState.value = FinishState.Done(prs, summary)
         }
+    }
+
+    /** Snapshot the finished session for the celebration dialog and share card. */
+    private suspend fun buildShareSummary(
+        startMillis: Long,
+        endMillis: Long,
+        savedSets: Int,
+        prs: List<PRResult>,
+    ): ShareSummary {
+        val unit = _uiState.value.weightUnit
+        val exercises = _uiState.value.exercises
+        val volumeTyped = exercises.sumOf { ex ->
+            ex.sets.filter { !it.isWarmup }.sumOf { s ->
+                (s.weight.toDoubleOrNull() ?: 0.0) * (s.reps.toIntOrNull() ?: 0)
+            }
+        }
+        val volumeText = when {
+            volumeTyped >= 10_000 -> "%.0fk".format(volumeTyped / 1000)
+            volumeTyped >= 1_000 -> "%.1fk".format(volumeTyped / 1000)
+            else -> "%.0f".format(volumeTyped)
+        } + " " + unit
+        val lines = exercises.map { ex ->
+            val n = ex.sets.count { !it.isWarmup && it.reps.toIntOrNull() != null && it.weight.toDoubleOrNull() != null }
+            "${ex.exercise.name} · $n ${if (n == 1) "set" else "sets"}"
+        }
+        val completed = workoutRepository.getAllWorkouts().first()
+            .filter { it.workout.endTime != null }
+            .map { it.workout.startTime }
+        val streak = StreakCalculator.compute(completed)
+        return ShareSummary(
+            headline = when {
+                prs.size > 1 -> "${prs.size} new PRs!"
+                prs.size == 1 -> "New PR!"
+                else -> "Workout complete"
+            },
+            dateText = SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date(startMillis)),
+            durationMinutes = ((endMillis - startMillis) / 60_000L).coerceAtLeast(1),
+            exerciseCount = exercises.size,
+            setCount = savedSets,
+            volumeText = volumeText,
+            exerciseLines = lines,
+            prLines = prs.map { "${it.exerciseName} ${WeightUnits.format(it.newBest1RM, unit)}" },
+            streakWeeks = streak.currentWeeks,
+        )
     }
 
     fun discardWorkout() {

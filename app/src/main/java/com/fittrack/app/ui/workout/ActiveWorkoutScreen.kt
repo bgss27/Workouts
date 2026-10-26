@@ -32,6 +32,7 @@ import com.fittrack.app.di.AppModule
 import com.fittrack.app.billing.FreeLimits
 import com.fittrack.app.billing.ProManager
 import com.fittrack.app.ui.components.CustomExerciseSheet
+import com.fittrack.app.share.WorkoutShareCard
 import com.fittrack.app.ui.components.DetailHeader
 import com.fittrack.app.ui.components.EmptyState
 import com.fittrack.app.ui.components.ExerciseCard
@@ -154,19 +155,22 @@ fun ActiveWorkoutScreen(
         }
     }
 
-    // Finish flow: if the user finished a workout with one or more PRs, show
-    // the celebration; otherwise navigate back as soon as the workout is saved.
+    // Finish flow: every saved workout gets the wrap-up dialog (stats, PRs,
+    // share). A dropped empty session has no summary and just navigates back.
     val finishState by viewModel.finishState.collectAsState()
     val done = finishState as? FinishState.Done
+    val shareContext = LocalContext.current
     LaunchedEffect(done) {
-        if (done != null && done.prs.isEmpty()) {
+        if (done != null && done.summary == null) {
             onWorkoutComplete()
         }
     }
-    if (done != null && done.prs.isNotEmpty()) {
+    if (done?.summary != null) {
         PostWorkoutCelebration(
             prs = done.prs,
+            summary = done.summary,
             displayUnit = uiState.weightUnit,
+            onShare = { WorkoutShareCard.share(shareContext, done.summary) },
             onDismiss = onWorkoutComplete,
         )
     }

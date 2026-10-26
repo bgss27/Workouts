@@ -16,6 +16,8 @@ import com.fittrack.app.data.repository.RoutineRepository
 import com.fittrack.app.data.repository.UserPlanRepository
 import com.fittrack.app.data.repository.WorkoutRepository
 import com.fittrack.app.domain.analysis.ProgressAnalyzer
+import com.fittrack.app.domain.analysis.Streak
+import com.fittrack.app.domain.analysis.StreakCalculator
 import com.fittrack.app.domain.model.Suggestion
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -65,6 +67,11 @@ class HomeViewModel(
     val workoutsThisWeek: StateFlow<Int> = workoutRepository
         .getCompletedWorkoutCountSince(startOfWeekMs())
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    /** Weekly training streak from completed workouts. */
+    val streak: StateFlow<Streak> = workoutRepository.getAllWorkouts()
+        .map { list -> StreakCalculator.compute(list.filter { it.workout.endTime != null }.map { it.workout.startTime }) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Streak(0, 0, 0))
 
     val totalVolumeKg: StateFlow<Double> = workoutRepository.getTotalVolumeKg()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)

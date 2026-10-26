@@ -6,7 +6,13 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Share
+import com.fittrack.app.share.ShareSummary
+import com.fittrack.app.ui.components.PrimaryButton
+import com.fittrack.app.ui.components.StatValue
+import com.fittrack.app.ui.components.TonalButton
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,15 +37,15 @@ import nl.dionsegijn.konfetti.core.emitter.Emitter
 import java.util.concurrent.TimeUnit
 
 /**
- * Full-screen celebration shown after a workout that produced one or more
- * 1RM PRs. Konfetti, a "trophy + delta" headline card, and a Continue button.
- * Auto-dismisses after 6 seconds if the user doesn't interact, so the flow
- * never blocks them.
+ * Full-screen wrap-up shown after every saved workout: confetti, the
+ * session's headline stats, PR rows when any were hit, and Share / Continue.
  */
 @Composable
 fun PostWorkoutCelebration(
     prs: List<PRResult>,
+    summary: ShareSummary?,
     displayUnit: String,
+    onShare: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
@@ -49,13 +55,6 @@ fun PostWorkoutCelebration(
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         delay(120)
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-    }
-
-    // Auto-dismiss as a safety net — keeps the flow snappy if the user puts
-    // the phone down.
-    LaunchedEffect(Unit) {
-        delay(6_000)
-        onDismiss()
     }
 
     Dialog(
@@ -113,18 +112,41 @@ fun PostWorkoutCelebration(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Icon(
-                        imageVector = Icons.Default.EmojiEvents,
+                        imageVector = if (prs.isNotEmpty()) Icons.Default.EmojiEvents else Icons.Default.CheckCircle,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.tertiary,
+                        tint = if (prs.isNotEmpty()) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(72.dp),
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = if (prs.size == 1) "New Personal Record!" else "${prs.size} New PRs!",
+                        text = when {
+                            prs.size == 1 -> "New Personal Record!"
+                            prs.size > 1 -> "${prs.size} New PRs!"
+                            else -> "Workout complete"
+                        },
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
                     )
+                    if (summary != null) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                        ) {
+                            StatValue(value = "${summary.durationMinutes}", label = "min", align = Alignment.CenterHorizontally)
+                            StatValue(value = "${summary.setCount}", label = "sets", align = Alignment.CenterHorizontally)
+                            StatValue(value = summary.volumeText, label = "volume", align = Alignment.CenterHorizontally)
+                        }
+                        if (summary.streakWeeks > 0) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "\uD83D\uDD25 ${summary.streakWeeks}-week streak",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(20.dp))
 
                     prs.take(3).forEach { pr ->
@@ -141,12 +163,11 @@ fun PostWorkoutCelebration(
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = onDismiss,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Continue")
+                    if (summary != null) {
+                        TonalButton(text = "Share", icon = Icons.Default.Share, onClick = onShare)
+                        Spacer(modifier = Modifier.height(10.dp))
                     }
+                    PrimaryButton(text = "Continue", onClick = onDismiss)
                 }
             }
         }

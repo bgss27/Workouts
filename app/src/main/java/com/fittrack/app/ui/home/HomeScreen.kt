@@ -76,6 +76,7 @@ fun HomeScreen(
     val workoutCount by viewModel.completedWorkoutCount.collectAsState()
     val workoutsThisWeek by viewModel.workoutsThisWeek.collectAsState()
     val totalVolumeKg by viewModel.totalVolumeKg.collectAsState()
+    val streak by viewModel.streak.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
     val exercises by viewModel.exercises.collectAsState()
     val hasPlan by viewModel.hasPlan.collectAsState()
@@ -276,11 +277,42 @@ fun HomeScreen(
             // Stats hero
             item {
                 HeroCard {
-                    Text(
-                        text = "Your Progress",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = com.fittrack.app.ui.theme.VoltInk.copy(alpha = 0.8f)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Your Progress",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = com.fittrack.app.ui.theme.VoltInk.copy(alpha = 0.8f),
+                            modifier = Modifier.weight(1f),
+                        )
+                        // Weekly streak pill: ink on lime so it reads on the hero.
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(com.fittrack.app.ui.theme.VoltInk.copy(alpha = 0.12f))
+                                .padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Icon(
+                                Icons.Default.LocalFireDepartment,
+                                contentDescription = null,
+                                tint = com.fittrack.app.ui.theme.VoltInk,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Text(
+                                text = when {
+                                    streak.currentWeeks > 0 -> "${streak.currentWeeks}-week streak"
+                                    else -> "Start a streak"
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                color = com.fittrack.app.ui.theme.VoltInk,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),

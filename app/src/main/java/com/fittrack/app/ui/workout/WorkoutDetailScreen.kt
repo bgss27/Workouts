@@ -13,6 +13,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.data.WeightUnits
 import com.fittrack.app.ui.components.DetailHeader
+import androidx.compose.material.icons.filled.Share
+import com.fittrack.app.data.relation.WorkoutWithExercises
+import com.fittrack.app.share.ShareSummary
+import com.fittrack.app.share.WorkoutShareCard
 import com.fittrack.app.data.entity.WorkoutExercise
 import com.fittrack.app.data.entity.WorkoutSet
 import com.fittrack.app.di.AppModule
@@ -38,7 +42,24 @@ fun WorkoutDetailScreen(
 
     Scaffold(
         topBar = {
-            DetailHeader(title = "Workout Detail", onBack = onBack)
+            DetailHeader(
+                title = "Workout Detail",
+                onBack = onBack,
+                actions = {
+                    val w = workout
+                    if (w?.workout?.endTime != null) {
+                        IconButton(onClick = {
+                            WorkoutShareCard.share(context, buildShareSummary(w, exerciseDetails, unit))
+                        }) {
+                            Icon(
+                                Icons.Default.Share,
+                                contentDescription = "Share workout",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                },
+            )
         }
     ) { padding ->
         LazyColumn(
@@ -144,4 +165,35 @@ fun WorkoutDetailScreen(
             }
         }
     }
+}
+
+/** Share-card data for a past workout (no PR or streak context here). */
+private fun buildShareSummary(
+    w: WorkoutWithExercises,
+    details: List<ExerciseDetail>,
+    unit: String,
+): ShareSummary {
+    val end = w.workout.endTime ?: w.workout.startTime
+    val working = details.flatMap { d -> d.sets.filter { !it.isWarmup } }
+    val volumeKg = working.sumOf { it.weightKg * it.reps }
+    val volume = WeightUnits.fromKg(volumeKg, unit)
+    val volumeText = when {
+        volume >= 10_000 -> "%.0fk".format(volume / 1000)
+        volume >= 1_000 -> "%.1fk".format(volume / 1000)
+        else -> "%.0f".format(volume)
+    } + " " + unit
+    return ShareSummary(
+        headline = "Workout complete",
+        dateText = SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date(w.workout.startTime)),
+        durationMinutes = ((end - w.workout.startTime) / 60_000L).coerceAtLeast(1),
+        exerciseCount = details.size,
+        setCount = working.size,
+        volumeText = volumeText,
+        exerciseLines = details.map { d ->
+            val n = d.sets.count { !it.isWarmup }
+            "${d.exerciseName} · $n ${if (n == 1) "set" else "sets"}"
+        },
+        prLines = emptyList(),
+        streakWeeks = 0,
+    )
 }
