@@ -177,6 +177,9 @@ object ExerciseGuideData {
         return guides[exerciseName] ?: defaultGuide(exerciseName)
     }
 
+    /** True when a hand-written guide exists (vs. the generic fallback). */
+    fun hasGuide(exerciseName: String): Boolean = guides.containsKey(exerciseName)
+
     private fun defaultGuide(name: String): ExerciseGuide {
         return ExerciseGuide(
             steps = listOf("Set up with proper form", "Perform the movement with control", "Return to start position"),

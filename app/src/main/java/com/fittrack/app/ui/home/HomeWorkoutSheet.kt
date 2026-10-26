@@ -65,7 +65,7 @@ fun HomeWorkoutSheet(
             Text("Equipment available", style = MaterialTheme.typography.labelMedium)
             Spacer(Modifier.height(6.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Equipment.entries.forEach { eq ->
+                Equipment.entries.filter { it != Equipment.OTHER }.forEach { eq ->
                     val selected = eq in selectedEquipment
                     FilterChip(
                         selected = selected,

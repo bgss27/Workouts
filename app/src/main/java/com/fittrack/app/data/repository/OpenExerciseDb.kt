@@ -105,6 +105,9 @@ object OpenExerciseDb {
         "Tricep Dip" to "Bench_Dips",
     )
 
+    /** Dataset ids already represented by a hand-curated catalog entry. */
+    fun mappedDatasetIds(): Set<String> = nameToDatasetId.values.toSet()
+
     @Volatile
     private var cache: Map<String, String>? = null
 

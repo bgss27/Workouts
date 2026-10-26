@@ -336,7 +336,11 @@ abstract class FitTrackDatabase : RoomDatabase() {
             }
         }
 
+        /** Application context for the one-time catalog import in onCreate. */
+        @Volatile private var seedContext: Context? = null
+
         fun getInstance(context: Context): FitTrackDatabase {
+            seedContext = context.applicationContext
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
@@ -356,11 +360,15 @@ abstract class FitTrackDatabase : RoomDatabase() {
                 // Both repair steps are name-based and idempotent — they're
                 // no-ops unless something is actually missing. Skip on a
                 // truly fresh install (onCreate handles that path).
+                val appContext = context.applicationContext
                 CoroutineScope(Dispatchers.IO).launch {
                     val exerciseCount = instance.exerciseDao().getCount()
                     if (exerciseCount > 0) {
                         SeedCallback.reseedMissingExercises(instance)
                         SeedCallback.reseedRoutinesOnly(instance)
+                        // Grow the catalog from the bundled dataset once per
+                        // catalog version; fresh installs do this in onCreate.
+                        CatalogImporter.importIfNeeded(appContext, instance.exerciseDao())
                     }
                 }
                 instance
@@ -375,6 +383,7 @@ abstract class FitTrackDatabase : RoomDatabase() {
                 CoroutineScope(Dispatchers.IO).launch {
                     seedExercises(database.exerciseDao())
                     seedRoutines(database.routineDao(), database.exerciseDao())
+                    seedContext?.let { CatalogImporter.importIfNeeded(it, database.exerciseDao()) }
                 }
             }
         }

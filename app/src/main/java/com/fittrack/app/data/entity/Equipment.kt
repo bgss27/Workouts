@@ -15,4 +15,7 @@ enum class Equipment(val displayName: String) {
     MACHINE("Machine / Cable"),
     BAND("Resistance Band"),
     PULL_UP_BAR("Pull-Up Bar"),
+    KETTLEBELL("Kettlebell"),
+    /** Sleds, balls, foam rollers, odd objects — not a home-workout filter option. */
+    OTHER("Other"),
 }

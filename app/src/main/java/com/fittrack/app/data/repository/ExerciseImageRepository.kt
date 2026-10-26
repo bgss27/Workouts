@@ -83,6 +83,9 @@ object ExerciseImageRepository {
         "Farmer's Walk" to "Farmer's_Walk",
     )
 
+    /** Dataset folder ids already represented by a hand-curated catalog entry. */
+    fun mappedDatasetIds(): Set<String> = imageMap.values.toSet()
+
     /**
      * Returns image URLs for an exercise (start position + end position).
      * These are static GitHub CDN URLs - no API calls needed.

@@ -25,6 +25,9 @@ import com.fittrack.app.ui.components.CustomExerciseSheet
 import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.domain.model.ExerciseGuideData
+import com.fittrack.app.data.repository.ExerciseImageRepository
+import com.fittrack.app.data.repository.OpenExerciseDb
+import androidx.compose.ui.platform.LocalContext
 import com.fittrack.app.ui.components.ExerciseImageGallery
 import com.fittrack.app.ui.components.IconBadge
 import com.fittrack.app.ui.components.MuscleGroupChipRow
@@ -260,7 +263,20 @@ private fun ExerciseDetailCard(exercise: Exercise, onEdit: () -> Unit) {
         }
 
         AnimatedVisibility(visible = expanded) {
+            val context = LocalContext.current
+            // Hand-written guides win; dataset entries (the imported catalog)
+            // use their own step-by-step text and skip the generic cues.
+            val curated = remember(exercise.name) { ExerciseGuideData.hasGuide(exercise.name) }
             val guide = ExerciseGuideData.getGuide(exercise.name)
+            val datasetSteps = remember(exercise.name) {
+                if (curated) null
+                else OpenExerciseDb.getInstructions(context, exercise.name)
+                    ?.split("\n\n")?.map { it.trim() }?.filter { it.isNotEmpty() }
+            }
+            val steps = datasetSteps ?: guide.steps
+            val hasImages = remember(exercise.name) {
+                ExerciseImageRepository.getExerciseImages(exercise.name).isNotEmpty()
+            }
             val muted = MaterialTheme.colorScheme.onSurfaceVariant
 
             Column(modifier = Modifier.padding(top = 12.dp)) {
@@ -273,10 +289,10 @@ private fun ExerciseDetailCard(exercise: Exercise, onEdit: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Exercise images from wger API
-                ExerciseImageGallery(exerciseName = exercise.name)
-
-                Spacer(modifier = Modifier.height(12.dp))
+                if (hasImages) {
+                    ExerciseImageGallery(exerciseName = exercise.name)
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
 
                 // Muscles
                 Row(
@@ -314,10 +330,11 @@ private fun ExerciseDetailCard(exercise: Exercise, onEdit: () -> Unit) {
                 // How to perform
                 Text("How to Perform", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(6.dp))
-                guide.steps.forEachIndexed { i, step ->
+                steps.forEachIndexed { i, step ->
                     InstructionStepRow(number = i + 1, text = step)
                 }
 
+                if (curated || datasetSteps == null) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Breathing
@@ -349,6 +366,7 @@ private fun ExerciseDetailCard(exercise: Exercise, onEdit: () -> Unit) {
                         Text("  ✗  ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                         Text(mistake, style = MaterialTheme.typography.bodySmall)
                     }
+                }
                 }
             }
         }
