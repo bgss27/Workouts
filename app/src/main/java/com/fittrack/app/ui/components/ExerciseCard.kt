@@ -3,10 +3,13 @@ package com.fittrack.app.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -59,6 +62,9 @@ fun ExerciseCard(
     onSupersetToggle: () -> Unit = {},
     onSwap: (() -> Unit)? = null,
     onSetCompleted: () -> Unit = {},
+    /** Explicit "done with this exercise" mark and its toggle. */
+    isFinished: Boolean = false,
+    onFinishToggle: (() -> Unit)? = null,
     // Expanded state is hoisted so the parent can implement an accordion —
     // only the "working" exercise stays open, the rest collapse. When the
     // parent passes null, the card falls back to its own self-managed
@@ -99,11 +105,16 @@ fun ExerciseCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            IconBadge(icon = Icons.Default.FitnessCenter, tint = accent)
+            // Done exercises swap the dumbbell badge for a check and dim the title.
+            IconBadge(
+                icon = if (isFinished) Icons.Default.CheckCircle else Icons.Default.FitnessCenter,
+                tint = if (isFinished) MaterialTheme.colorScheme.primary else accent,
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = exerciseName,
                     style = MaterialTheme.typography.titleMedium,
+                    color = if (isFinished) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                 )
                 Row(
@@ -115,6 +126,7 @@ fun ExerciseCard(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
+                    if (isFinished) DonePill()
                     if (inSuperset) SupersetBadge()
                 }
             }
@@ -240,30 +252,67 @@ fun ExerciseCard(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                // Add set: full-width strip on a container-high fill that
-                // takes the tile's bottom corners (the Tile clips to its shape).
+                // Footer strip on a container-high fill that takes the tile's
+                // bottom corners: "Add set" on the left, "Done" / "Reopen" on
+                // the right (when the parent supports finishing).
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .clickable(onClick = onAddSet)
-                        .padding(vertical = 12.dp),
-                    horizontalArrangement = Arrangement.Center,
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = "Add set",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(onClick = onAddSet)
+                            .padding(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "Add set",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    if (onFinishToggle != null) {
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(24.dp)
+                                .background(MaterialTheme.colorScheme.outlineVariant)
+                        )
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable(onClick = onFinishToggle)
+                                .padding(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                if (isFinished) Icons.Default.Refresh else Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = if (isFinished) "Reopen" else "Done",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -283,6 +332,20 @@ private fun SetHeaderLabel(text: String, modifier: Modifier = Modifier) {
 }
 
 /** Small pill marking an exercise as part of a superset. */
+/** Small lime pill shown on a finished exercise's header. */
+@Composable
+private fun DonePill(modifier: Modifier = Modifier) {
+    Text(
+        text = "DONE",
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onPrimary,
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(50))
+            .padding(horizontal = 6.dp, vertical = 1.dp),
+    )
+}
+
 @Composable
 private fun SupersetBadge(modifier: Modifier = Modifier) {
     val fg = MaterialTheme.colorScheme.secondary

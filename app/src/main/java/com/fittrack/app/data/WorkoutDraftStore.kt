@@ -29,6 +29,7 @@ class WorkoutDraftStore(context: Context) {
         val exerciseId: Long,
         val supersetGroup: Long?,
         val sets: List<DraftSet>,
+        val isFinished: Boolean = false,
     )
 
     data class Draft(
@@ -48,6 +49,7 @@ class WorkoutDraftStore(context: Context) {
                             .put("workoutExerciseId", ex.workoutExerciseId)
                             .put("exerciseId", ex.exerciseId)
                             .put("supersetGroup", ex.supersetGroup ?: JSONObject.NULL)
+                            .put("isFinished", ex.isFinished)
                             .put("sets", JSONArray().also { sets ->
                                 ex.sets.forEach { s ->
                                     sets.put(
@@ -77,6 +79,7 @@ class WorkoutDraftStore(context: Context) {
                         workoutExerciseId = ex.getLong("workoutExerciseId"),
                         exerciseId = ex.getLong("exerciseId"),
                         supersetGroup = if (ex.isNull("supersetGroup")) null else ex.getLong("supersetGroup"),
+                        isFinished = ex.optBoolean("isFinished", false),
                         sets = ex.getJSONArray("sets").let { sets ->
                             (0 until sets.length()).map { j ->
                                 val s = sets.getJSONObject(j)

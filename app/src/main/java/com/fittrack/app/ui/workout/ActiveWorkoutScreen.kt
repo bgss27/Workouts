@@ -236,6 +236,10 @@ fun ActiveWorkoutScreen(
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
                         text = buildString {
+                            val doneExercises = uiState.exercises.count { it.isFinished }
+                            if (uiState.exercises.isNotEmpty()) {
+                                append("$doneExercises/${uiState.exercises.size} done  ·  ")
+                            }
                             append("$completedSets/$totalSets sets")
                             if (totalVolume > 0.0) {
                                 append("  ·  ")
@@ -401,6 +405,19 @@ fun ActiveWorkoutScreen(
                         onUpdateSet = { setIndex, setData -> viewModel.updateSet(index, setIndex, setData) },
                         onDeleteSet = { setIndex -> viewModel.deleteSet(index, setIndex) },
                         onRemoveExercise = { viewModel.removeExercise(index) },
+                        isFinished = exerciseState.isFinished,
+                        onFinishToggle = {
+                            val wasFinished = exerciseState.isFinished
+                            viewModel.toggleExerciseFinished(index)
+                            // Marking done collapses it and opens the next
+                            // unfinished exercise, if there is one.
+                            if (!wasFinished) {
+                                val next = uiState.exercises.indices
+                                    .firstOrNull { it != index && !uiState.exercises[it].isFinished && it > index }
+                                    ?: uiState.exercises.indices.firstOrNull { it != index && !uiState.exercises[it].isFinished }
+                                expandedIndex = next
+                            }
+                        },
                         expanded = (index == expandedIndex),
                         onExpandToggle = {
                             expandedIndex = if (expandedIndex == index) null else index

@@ -34,6 +34,8 @@ data class WorkoutExerciseUiState(
     val sets: List<SetData> = listOf(SetData()),
     /** Non-null when this exercise is part of a superset; shared with peers. */
     val supersetGroup: Long? = null,
+    /** User explicitly marked this exercise done for the session. */
+    val isFinished: Boolean = false,
 )
 
 data class ActiveWorkoutUiState(
@@ -221,6 +223,7 @@ class ActiveWorkoutViewModel(
                     SetData(reps = s.reps, weight = s.weight, isWarmup = s.isWarmup, rpe = s.rpe, isCompleted = s.isCompleted)
                 }.ifEmpty { listOf(SetData()) },
                 supersetGroup = ex.supersetGroup,
+                isFinished = ex.isFinished,
             )
         }
         _uiState.update {
@@ -256,6 +259,7 @@ class ActiveWorkoutViewModel(
                             sets = ex.sets.map { s ->
                                 WorkoutDraftStore.DraftSet(s.reps, s.weight, s.isWarmup, s.rpe, s.isCompleted)
                             },
+                            isFinished = ex.isFinished,
                         )
                     },
                 )
@@ -432,6 +436,18 @@ class ActiveWorkoutViewModel(
             _uiState.update { it.copy(exercises = updated) }
             persistDraft()
         }
+    }
+
+    /** Flip the explicit "done with this exercise" mark. */
+    fun toggleExerciseFinished(exerciseIndex: Int) {
+        _uiState.update { state ->
+            if (exerciseIndex !in state.exercises.indices) return@update state
+            val exercises = state.exercises.toMutableList()
+            val ex = exercises[exerciseIndex]
+            exercises[exerciseIndex] = ex.copy(isFinished = !ex.isFinished)
+            state.copy(exercises = exercises)
+        }
+        persistDraft()
     }
 
     fun deleteSet(exerciseIndex: Int, setIndex: Int) {
