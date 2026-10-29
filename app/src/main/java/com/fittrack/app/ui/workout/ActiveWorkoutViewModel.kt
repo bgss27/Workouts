@@ -15,6 +15,9 @@ import com.fittrack.app.domain.analysis.TimeBasedGuidance
 import com.fittrack.app.domain.analysis.TimeOfDayAdvisor
 import com.fittrack.app.ui.components.SetData
 import com.fittrack.app.data.WeightUnits
+import com.fittrack.app.data.WorkoutDraftStore
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import com.fittrack.app.domain.analysis.StreakCalculator
 import com.fittrack.app.share.ShareSummary
 import java.text.SimpleDateFormat
@@ -76,6 +79,7 @@ class ActiveWorkoutViewModel(
      */
     private val initialExerciseIds: List<Long>,
     private val initialWeightUnit: String,
+    private val draftStore: WorkoutDraftStore,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ActiveWorkoutUiState())
@@ -104,6 +108,16 @@ class ActiveWorkoutViewModel(
 
     init {
         startup = viewModelScope.launch {
+            // A plain "Quick Workout" entry resumes an interrupted session if
+            // one was drafted (process death while the phone was locked, a
+            // crash, etc.). Routine / generator entries always start fresh.
+            val explicitStart = routineId != null || initialExerciseIds.isNotEmpty()
+            if (!explicitStart && restoreDraft()) {
+                startTicker()
+                return@launch
+            }
+            draftStore.clear()
+
             // Start workout
             val startMillis = System.currentTimeMillis()
             val workoutId = workoutRepository.startWorkout()
@@ -187,6 +201,68 @@ class ActiveWorkoutViewModel(
         }
     }
 
+    /**
+     * Rebuild UI state from the saved draft when its workout row is still
+     * open. Returns false (and drops a stale draft) when nothing matches.
+     */
+    private suspend fun restoreDraft(): Boolean {
+        val draft = draftStore.load() ?: return false
+        val active = workoutRepository.getActiveWorkout()
+        if (active == null || active.id != draft.workoutId) {
+            draftStore.clear()
+            return false
+        }
+        val exercises = draft.exercises.mapNotNull { ex ->
+            val exercise = exerciseRepository.getById(ex.exerciseId) ?: return@mapNotNull null
+            WorkoutExerciseUiState(
+                workoutExerciseId = ex.workoutExerciseId,
+                exercise = exercise,
+                sets = ex.sets.map { s ->
+                    SetData(reps = s.reps, weight = s.weight, isWarmup = s.isWarmup, rpe = s.rpe, isCompleted = s.isCompleted)
+                }.ifEmpty { listOf(SetData()) },
+                supersetGroup = ex.supersetGroup,
+            )
+        }
+        _uiState.update {
+            it.copy(
+                workoutId = active.id,
+                exercises = exercises,
+                isActive = true,
+                startTimeMillis = active.startTime,
+                weightUnit = draft.weightUnit,
+            )
+        }
+        return true
+    }
+
+    private var draftJob: Job? = null
+
+    /** Mirror the current state to disk, debounced so typing doesn't thrash. */
+    private fun persistDraft() {
+        draftJob?.cancel()
+        draftJob = viewModelScope.launch {
+            delay(250)
+            val state = _uiState.value
+            if (!state.isActive || state.workoutId == 0L) return@launch
+            draftStore.save(
+                WorkoutDraftStore.Draft(
+                    workoutId = state.workoutId,
+                    weightUnit = state.weightUnit,
+                    exercises = state.exercises.map { ex ->
+                        WorkoutDraftStore.DraftExercise(
+                            workoutExerciseId = ex.workoutExerciseId,
+                            exerciseId = ex.exercise.id,
+                            supersetGroup = ex.supersetGroup,
+                            sets = ex.sets.map { s ->
+                                WorkoutDraftStore.DraftSet(s.reps, s.weight, s.isWarmup, s.rpe, s.isCompleted)
+                            },
+                        )
+                    },
+                )
+            )
+        }
+    }
+
     private suspend fun addExerciseInternal(workoutId: Long, exercise: Exercise, setRows: Int = 1) {
         val orderIndex = _uiState.value.exercises.size
         val workoutExerciseId = workoutRepository.addExerciseToWorkout(
@@ -201,6 +277,7 @@ class ActiveWorkoutViewModel(
                 )
             )
         }
+        persistDraft()
     }
 
     /**
@@ -256,6 +333,7 @@ class ActiveWorkoutViewModel(
                 )
                 st.copy(exercises = updated)
             }
+            persistDraft()
         }
     }
 
@@ -281,6 +359,7 @@ class ActiveWorkoutViewModel(
             }
 
             _uiState.update { state -> state.copy(exercises = updated) }
+            persistDraft()
         }
     }
 
@@ -291,6 +370,7 @@ class ActiveWorkoutViewModel(
             exercises[exerciseIndex] = exercise.copy(sets = exercise.sets + SetData())
             state.copy(exercises = exercises)
         }
+        persistDraft()
     }
 
     fun updateSet(exerciseIndex: Int, setIndex: Int, setData: SetData) {
@@ -302,6 +382,7 @@ class ActiveWorkoutViewModel(
             exercises[exerciseIndex] = exercise.copy(sets = sets)
             state.copy(exercises = exercises)
         }
+        persistDraft()
     }
 
     /**
@@ -349,6 +430,7 @@ class ActiveWorkoutViewModel(
             }
 
             _uiState.update { it.copy(exercises = updated) }
+            persistDraft()
         }
     }
 
@@ -363,6 +445,7 @@ class ActiveWorkoutViewModel(
             }
             state.copy(exercises = exercises)
         }
+        persistDraft()
     }
 
     /**
@@ -421,6 +504,8 @@ class ActiveWorkoutViewModel(
 
             // Nothing logged: don't record a completed workout that would
             // inflate counters and the calendar. Drop the row and leave.
+            draftJob?.cancel()
+            draftStore.clear()
             if (savedSets == 0) {
                 workoutRepository.deleteWorkout(workoutId)
                 _uiState.update { it.copy(isActive = false) }
@@ -492,6 +577,8 @@ class ActiveWorkoutViewModel(
 
     fun discardWorkout() {
         viewModelScope.launch {
+            draftJob?.cancel()
+            draftStore.clear()
             workoutRepository.deleteWorkout(_uiState.value.workoutId)
             _uiState.update { it.copy(isActive = false) }
         }
@@ -506,6 +593,7 @@ class ActiveWorkoutViewModel(
         private val routineId: Long?,
         private val initialExerciseIds: List<Long>,
         private val initialWeightUnit: String,
+        private val draftStore: WorkoutDraftStore,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -518,6 +606,7 @@ class ActiveWorkoutViewModel(
                 routineId,
                 initialExerciseIds,
                 initialWeightUnit,
+                draftStore,
             ) as T
         }
     }

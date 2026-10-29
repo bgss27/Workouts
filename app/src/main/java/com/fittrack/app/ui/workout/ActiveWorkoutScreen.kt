@@ -33,6 +33,7 @@ import com.fittrack.app.billing.FreeLimits
 import com.fittrack.app.billing.ProManager
 import com.fittrack.app.ui.components.CustomExerciseSheet
 import com.fittrack.app.share.WorkoutShareCard
+import com.fittrack.app.data.WorkoutDraftStore
 import com.fittrack.app.ui.components.DetailHeader
 import com.fittrack.app.ui.components.EmptyState
 import com.fittrack.app.ui.components.ExerciseCard
@@ -76,6 +77,7 @@ fun ActiveWorkoutScreen(
             routineId,
             initialExerciseIds,
             initialWeightUnit,
+            WorkoutDraftStore(LocalContext.current.applicationContext),
         )
     )
 
@@ -113,15 +115,12 @@ fun ActiveWorkoutScreen(
     // moment the first set was typed and the user couldn't add set two.
     var expandedIndex by rememberSaveable { mutableStateOf<Int?>(0) }
     LaunchedEffect(uiState.exercises.size) {
-        val cur = expandedIndex
-        if (uiState.exercises.isEmpty()) {
-            expandedIndex = null
-        } else if (cur != null && cur !in uiState.exercises.indices) {
-            // The expanded exercise was removed; open the last one.
+        // Default 0 means the first exercise opens as soon as one exists —
+        // including after a draft restore, where the list starts empty and
+        // fills a moment later. Only a removal needs correcting.
+        val cur = expandedIndex ?: return@LaunchedEffect
+        if (uiState.exercises.isNotEmpty() && cur !in uiState.exercises.indices) {
             expandedIndex = uiState.exercises.lastIndex
-        } else if (cur == null && uiState.exercises.size == 1) {
-            // First exercise added to an empty workout: open it.
-            expandedIndex = 0
         }
     }
 

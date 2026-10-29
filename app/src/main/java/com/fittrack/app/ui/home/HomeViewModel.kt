@@ -8,6 +8,7 @@ import com.fittrack.app.data.entity.Exercise
 import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.data.entity.UserPlan
 import com.fittrack.app.data.health.HealthConnectService
+import com.fittrack.app.data.WorkoutDraftStore
 import com.fittrack.app.data.health.StepsSummary
 import com.fittrack.app.data.relation.RoutineWithExercises
 import com.fittrack.app.data.relation.WorkoutWithExercises
@@ -36,7 +37,21 @@ class HomeViewModel(
     private val userPlanRepository: UserPlanRepository,
     private val routineRepository: RoutineRepository,
     private val healthConnectService: HealthConnectService,
+    private val draftStore: WorkoutDraftStore,
 ) : ViewModel() {
+
+    /** True when an unfinished workout with a saved draft exists (resumable). */
+    private val _workoutInProgress = MutableStateFlow(false)
+    val workoutInProgress: StateFlow<Boolean> = _workoutInProgress
+
+    /** Cheap; call whenever Home is shown. */
+    fun refreshInProgress() {
+        viewModelScope.launch {
+            val draft = draftStore.load()
+            val active = workoutRepository.getActiveWorkout()
+            _workoutInProgress.value = draft != null && active != null && active.id == draft.workoutId
+        }
+    }
 
     /** Step counts from Health Connect; null until read or when unavailable. */
     private val _steps = MutableStateFlow<StepsSummary?>(null)
@@ -376,12 +391,13 @@ class HomeViewModel(
         private val userPlanRepository: UserPlanRepository,
         private val routineRepository: RoutineRepository,
         private val healthConnectService: HealthConnectService,
+        private val draftStore: WorkoutDraftStore,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return HomeViewModel(
                 workoutRepository, exerciseRepository, progressAnalyzer,
-                userPlanRepository, routineRepository, healthConnectService,
+                userPlanRepository, routineRepository, healthConnectService, draftStore,
             ) as T
         }
     }

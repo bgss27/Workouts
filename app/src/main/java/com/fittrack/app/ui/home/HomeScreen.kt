@@ -22,6 +22,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.activity.compose.rememberLauncherForActivityResult
 import com.fittrack.app.data.EquipmentPrefs
+import com.fittrack.app.data.WorkoutDraftStore
 import com.fittrack.app.data.health.HealthConnectAvailability
 import com.fittrack.app.data.health.StepsSummary
 import com.fittrack.app.ui.components.PillChip
@@ -69,6 +70,7 @@ fun HomeScreen(
             appModule.userPlanRepository,
             appModule.routineRepository,
             appModule.healthConnectService,
+            WorkoutDraftStore(LocalContext.current.applicationContext),
         )
     )
 
@@ -89,6 +91,8 @@ fun HomeScreen(
     val steps by viewModel.steps.collectAsState()
     val stepsGranted by viewModel.stepsGranted.collectAsState()
     LaunchedEffect(Unit) { viewModel.refreshSteps() }
+    val workoutInProgress by viewModel.workoutInProgress.collectAsState()
+    LaunchedEffect(Unit) { viewModel.refreshInProgress() }
     val stepsLauncher = rememberLauncherForActivityResult(
         contract = healthConnect.permissionRequestContract()
     ) { viewModel.refreshSteps() }
@@ -168,6 +172,21 @@ fun HomeScreen(
             contentPadding = PaddingValues(horizontal = ScreenGutter, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Resume banner: an interrupted workout (app killed while the
+            // phone was locked) whose sets were drafted. Tapping Quick Workout
+            // restores it; this tile just makes that obvious.
+            if (workoutInProgress) {
+                item {
+                    PromptTile(
+                        icon = Icons.Default.PlayArrow,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        title = "Workout in progress",
+                        subtitle = "Your sets are saved. Tap to pick up where you left off.",
+                        onClick = onStartWorkout,
+                    )
+                }
+            }
+
             // Quick actions: the two primary entry points, side by side.
             item {
                 Row(
