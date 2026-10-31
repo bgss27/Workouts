@@ -10,7 +10,6 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.fittrack.app.data.db.dao.BodyMetricDao
 import com.fittrack.app.data.db.dao.ExerciseDao
 import com.fittrack.app.data.db.dao.RoutineDao
-import com.fittrack.app.data.db.dao.SyncDao
 import com.fittrack.app.data.db.dao.UserPlanDao
 import com.fittrack.app.data.db.dao.WorkoutDao
 import com.fittrack.app.data.db.dao.WorkoutSetDao
@@ -166,11 +165,10 @@ internal val SEED_EXERCISES: List<Exercise> = listOf(
         Routine::class,
         RoutineExercise::class,
         UserPlan::class,
-        BodyMetric::class,
-        SyncTombstone::class
+        BodyMetric::class
     ],
-    version = 9,
-    exportSchema = false
+    version = 10,
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class FitTrackDatabase : RoomDatabase() {
@@ -180,7 +178,6 @@ abstract class FitTrackDatabase : RoomDatabase() {
     abstract fun routineDao(): RoutineDao
     abstract fun userPlanDao(): UserPlanDao
     abstract fun bodyMetricDao(): BodyMetricDao
-    abstract fun syncDao(): SyncDao
 
     companion object {
         @Volatile
@@ -341,13 +338,15 @@ abstract class FitTrackDatabase : RoomDatabase() {
 
         const val DB_NAME = "fittrack_database"
         /** Must match the @Database version above; checked by DatabaseBackup. */
-        const val DB_VERSION = 9
+        const val DB_VERSION = 10
 
         /** Application context for the one-time catalog import in onCreate. */
         @Volatile private var seedContext: Context? = null
 
         /**
-         * Cloud sync columns. Nullable with no defaults so the ALTERs match the
+         * Historical: columns for a cloud-sync feature that shipped briefly in
+         * v9 and was removed in v10 below. Kept so v8 installs can still step
+         * through v9. Nullable with no defaults so the ALTERs match the
          * entity definitions exactly; the sync engine assigns remote ids on
          * first run. The exercises table is extended for custom exercises;
          * catalog rows get deterministic ids at runtime.
@@ -372,6 +371,51 @@ abstract class FitTrackDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Cloud sync was removed. Rebuild the four tables without the
+         * remoteId/updatedAt/dirty columns (SQLite's DROP COLUMN needs 3.35,
+         * which pre-Android-14 devices lack) and drop the tombstone table.
+         * The CREATE statements are Room's own, copied from schemas/10.json.
+         */
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Pattern: create `<t>_new`, copy the kept columns, drop `<t>`,
+                // rename. Never rename the old table out of the way instead —
+                // SQLite rewrites child foreign keys to follow a rename, which
+                // would leave them pointing at the dropped `<t>_old`.
+                fun rebuild(table: String, createNew: String, columns: String) {
+                    db.execSQL(createNew)
+                    db.execSQL("INSERT INTO `${table}_new` ($columns) SELECT $columns FROM `$table`")
+                    db.execSQL("DROP TABLE `$table`")
+                    db.execSQL("ALTER TABLE `${table}_new` RENAME TO `$table`")
+                }
+                rebuild(
+                    "exercises",
+                    "CREATE TABLE IF NOT EXISTS `exercises_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `muscleGroup` TEXT NOT NULL, `secondaryMuscleGroup` TEXT, `isCustom` INTEGER NOT NULL, `equipment` TEXT NOT NULL)",
+                    "`id`, `name`, `muscleGroup`, `secondaryMuscleGroup`, `isCustom`, `equipment`",
+                )
+                rebuild(
+                    "workouts",
+                    "CREATE TABLE IF NOT EXISTS `workouts_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `startTime` INTEGER NOT NULL, `endTime` INTEGER, `notes` TEXT)",
+                    "`id`, `startTime`, `endTime`, `notes`",
+                )
+                rebuild(
+                    "workout_exercises",
+                    "CREATE TABLE IF NOT EXISTS `workout_exercises_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `workoutId` INTEGER NOT NULL, `exerciseId` INTEGER NOT NULL, `orderIndex` INTEGER NOT NULL, `supersetGroup` INTEGER, FOREIGN KEY(`workoutId`) REFERENCES `workouts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`exerciseId`) REFERENCES `exercises`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+                    "`id`, `workoutId`, `exerciseId`, `orderIndex`, `supersetGroup`",
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_exercises_workoutId` ON `workout_exercises` (`workoutId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_exercises_exerciseId` ON `workout_exercises` (`exerciseId`)")
+                rebuild(
+                    "workout_sets",
+                    "CREATE TABLE IF NOT EXISTS `workout_sets_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `workoutExerciseId` INTEGER NOT NULL, `setNumber` INTEGER NOT NULL, `reps` INTEGER NOT NULL, `weightKg` REAL NOT NULL, `isWarmup` INTEGER NOT NULL, `rpe` INTEGER, FOREIGN KEY(`workoutExerciseId`) REFERENCES `workout_exercises`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+                    "`id`, `workoutExerciseId`, `setNumber`, `reps`, `weightKg`, `isWarmup`, `rpe`",
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_sets_workoutExerciseId` ON `workout_sets` (`workoutExerciseId`)")
+                db.execSQL("DROP TABLE IF EXISTS `sync_tombstones`")
+            }
+        }
+
         fun getInstance(context: Context): FitTrackDatabase {
             seedContext = context.applicationContext
             return INSTANCE ?: synchronized(this) {
@@ -384,7 +428,7 @@ abstract class FitTrackDatabase : RoomDatabase() {
                     FitTrackDatabase::class.java,
                     DB_NAME
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                     // No destructive fallback: a schema bump without a registered
                     // migration must crash in development, never wipe a user's
                     // history in production.

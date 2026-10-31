@@ -40,8 +40,8 @@ interface WorkoutSetDao {
     @Query("DELETE FROM workout_exercises WHERE id = :workoutExerciseId")
     suspend fun deleteWorkoutExercise(workoutExerciseId: Long)
 
-    @Query("UPDATE workout_exercises SET supersetGroup = :groupId, updatedAt = :now, dirty = 1 WHERE id = :workoutExerciseId")
-    suspend fun updateSupersetGroup(workoutExerciseId: Long, groupId: Long?, now: Long)
+    @Query("UPDATE workout_exercises SET supersetGroup = :groupId WHERE id = :workoutExerciseId")
+    suspend fun updateSupersetGroup(workoutExerciseId: Long, groupId: Long?)
 
     @Query("""
         SELECT ws.* FROM workout_sets ws

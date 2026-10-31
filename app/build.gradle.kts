@@ -1,11 +1,8 @@
-import java.util.Properties
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
-    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -45,17 +42,12 @@ android {
         compose = true
         buildConfig = true
     }
+}
 
-    // Supabase project coordinates come from local.properties (never committed):
-    //   supabase.url=https://xxxx.supabase.co
-    //   supabase.anonKey=eyJ...
-    // Blank values disable the sync feature at runtime.
-    val localProps = Properties().apply {
-        val f = rootProject.file("local.properties")
-        if (f.exists()) f.inputStream().use { load(it) }
-    }
-    defaultConfig.buildConfigField("String", "SUPABASE_URL", "\"${localProps.getProperty("supabase.url", "")}\"")
-    defaultConfig.buildConfigField("String", "SUPABASE_ANON_KEY", "\"${localProps.getProperty("supabase.anonKey", "")}\"")
+// Export the Room schema per version so migrations can be written against
+// the exact SQL Room expects, and checked in review.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
@@ -97,13 +89,6 @@ dependencies {
 
     // Konfetti for the PR celebration animation.
     implementation("nl.dionsegijn:konfetti-compose:2.0.5")
-
-    // Cloud sync — Supabase (Postgres + auth) over Ktor, scheduled with WorkManager.
-    implementation(platform("io.github.jan-tennert.supabase:bom:3.0.3"))
-    implementation("io.github.jan-tennert.supabase:postgrest-kt")
-    implementation("io.github.jan-tennert.supabase:auth-kt")
-    implementation("io.ktor:ktor-client-okhttp:3.0.3")
-    implementation("androidx.work:work-runtime-ktx:2.10.0")
 
     // Health Connect — write workouts to the system Health store.
     // Pinned to alpha10 because the 1.1.0-rc series requires compileSdk 36 +

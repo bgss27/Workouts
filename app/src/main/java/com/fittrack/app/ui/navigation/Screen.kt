@@ -59,7 +59,6 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     data object BodyMetrics : Screen("body_metrics", "Body Metrics", Icons.Default.MonitorWeight)
     data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
     data object Upgrade : Screen("upgrade", "Upgrade")
-    data object Account : Screen("account", "Cloud sync")
 
     companion object {
         val bottomNavItems = listOf(Home, MyPlan, Calendar, Exercises, Settings)

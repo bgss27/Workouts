@@ -3,7 +3,6 @@ package com.fittrack.app
 import android.app.Application
 import com.fittrack.app.billing.ProManager
 import com.fittrack.app.di.AppModule
-import com.fittrack.app.sync.SyncScheduler
 
 class FitTrackApp : Application() {
     lateinit var appModule: AppModule
@@ -16,7 +15,6 @@ class FitTrackApp : Application() {
         appModule = AppModule(this)
         proManager = ProManager(this)
         proManager.initialize()
-        SyncScheduler.schedulePeriodic(this)
     }
 
     override fun onTerminate() {

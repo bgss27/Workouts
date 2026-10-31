@@ -65,7 +65,7 @@ interface WorkoutDao {
      * is the right primitive — if the user opened an earlier workout and never
      * tapped Finish/Discard, that orphan would otherwise mask this one.
      */
-    @Query("UPDATE workouts SET endTime = :endTime, notes = :notes, updatedAt = :endTime, dirty = 1 WHERE id = :id")
+    @Query("UPDATE workouts SET endTime = :endTime, notes = :notes WHERE id = :id")
     suspend fun finishWorkoutById(id: Long, endTime: Long, notes: String?)
 
     /**
