@@ -8,7 +8,10 @@ struct SettingsView: View {
     @EnvironmentObject var healthKit: HealthKitService
     @State private var shareItem: ShareItem?
     @AppStorage("profile_name") private var name = ""
-    @AppStorage("profile_age") private var age = ""
+    /// Age typed in before birthdate existed; shown only until a birthdate is set.
+    @AppStorage("profile_age") private var legacyAge = ""
+    /// Birthdate as seconds since 1970; 0 means not set.
+    @AppStorage("profile_birthdate") private var birthDateTimestamp: Double = 0
     @AppStorage("profile_weight") private var weight = ""
     @AppStorage("profile_height") private var height = ""
     @AppStorage("profile_gender") private var gender = "Not specified"
@@ -19,6 +22,22 @@ struct SettingsView: View {
     let genders = ["Male", "Female", "Not specified"]
     let goals = ["Build Muscle", "Lose Weight", "Gain Strength", "Improve Endurance", "General Fitness"]
     let levels = ["Beginner", "Intermediate", "Advanced"]
+
+    private var birthDate: Binding<Date> {
+        Binding(
+            get: { Date(timeIntervalSince1970: birthDateTimestamp) },
+            set: { birthDateTimestamp = Calendar.current.startOfDay(for: $0).timeIntervalSince1970 }
+        )
+    }
+
+    /// Whole years as of today, derived from the birthdate; falls back to the legacy typed age.
+    private var age: Int? {
+        if birthDateTimestamp > 0 {
+            let dob = Date(timeIntervalSince1970: birthDateTimestamp)
+            return Calendar.current.dateComponents([.year], from: dob, to: Date()).year
+        }
+        return Int(legacyAge)
+    }
 
     var body: some View {
         NavigationStack {
@@ -43,8 +62,23 @@ struct SettingsView: View {
                 // Profile info
                 Section("Profile") {
                     TextField("Name", text: $name)
-                    TextField("Age", text: $age)
-                        .keyboardType(.numberPad)
+                    if birthDateTimestamp > 0 {
+                        DatePicker("Birthdate", selection: birthDate, in: ...Date(), displayedComponents: .date)
+                        if let age {
+                            LabeledContent("Age", value: "\(age) years")
+                        }
+                    } else {
+                        Button {
+                            let thirtyYearsAgo = Calendar.current.date(byAdding: .year, value: -30, to: Date()) ?? Date()
+                            birthDate.wrappedValue = thirtyYearsAgo
+                        } label: {
+                            LabeledContent("Birthdate") {
+                                Text(age.map { "Age \($0) entered · set birthdate" } ?? "Set to see your age")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .tint(.primary)
+                    }
 
                     HStack {
                         TextField("Weight", text: $weight)

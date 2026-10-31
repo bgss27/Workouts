@@ -35,6 +35,11 @@ import com.fittrack.app.ui.components.Tile
 import com.fittrack.app.ui.components.fitTextFieldColors
 import com.fittrack.app.ui.theme.ThemeMode
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 @Composable
 fun SettingsScreen(
@@ -142,19 +147,9 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             TextField(
-                                value = profile.age,
-                                onValueChange = { viewModel.updateProfile(profile.copy(age = it.filter { c -> c.isDigit() })) },
-                                placeholder = { Text("Age") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                shape = MaterialTheme.shapes.small,
-                                colors = fitTextFieldColors(),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                            )
-                            TextField(
                                 value = profile.weightKg,
                                 onValueChange = { viewModel.updateProfile(profile.copy(weightKg = it.filter { c -> c.isDigit() || c == '.' })) },
-                                placeholder = { Text("Wt ${profile.weightUnit}", maxLines = 1) },
+                                placeholder = { Text("Weight (${profile.weightUnit})", maxLines = 1) },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
                                 shape = MaterialTheme.shapes.small,
@@ -164,7 +159,7 @@ fun SettingsScreen(
                             TextField(
                                 value = profile.heightCm,
                                 onValueChange = { viewModel.updateProfile(profile.copy(heightCm = it.filter { c -> c.isDigit() })) },
-                                placeholder = { Text("Ht cm", maxLines = 1) },
+                                placeholder = { Text("Height (cm)", maxLines = 1) },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
                                 shape = MaterialTheme.shapes.small,
@@ -173,6 +168,12 @@ fun SettingsScreen(
                             )
                         }
                     }
+                    RowDivider()
+                    BirthDateRow(
+                        birthDate = profile.birthDate,
+                        age = profile.age,
+                        onSelect = { viewModel.updateProfile(profile.copy(birthDate = it)) },
+                    )
                     RowDivider()
                     DropdownRow(
                         title = "Gender",
@@ -499,6 +500,83 @@ private fun DropdownRow(
                 )
             }
         }
+    }
+}
+
+/**
+ * Birthdate row: shows the date and the age derived from it; tapping opens a
+ * date picker capped at today. Before a birthdate is set it shows any age the
+ * user typed into the old free-text field, marked as such.
+ */
+@Composable
+private fun BirthDateRow(
+    birthDate: LocalDate?,
+    age: Int?,
+    onSelect: (LocalDate) -> Unit,
+) {
+    var showPicker by remember { mutableStateOf(false) }
+    val subtitle = when {
+        birthDate != null -> birthDate.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
+        age != null -> "Age $age entered manually · tap to set your birthdate"
+        else -> "Set it to see your age"
+    }
+    ListRow(
+        title = "Birthdate",
+        subtitle = subtitle,
+        icon = Icons.Default.Cake,
+        onClick = { showPicker = true },
+        trailing = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                if (birthDate != null && age != null) TrailingValue("$age yrs")
+                SmallChevron()
+            }
+        },
+    )
+    if (showPicker) {
+        BirthDatePicker(
+            initial = birthDate ?: LocalDate.now().minusYears(30),
+            onDismiss = { showPicker = false },
+            onConfirm = {
+                onSelect(it)
+                showPicker = false
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BirthDatePicker(
+    initial: LocalDate,
+    onDismiss: () -> Unit,
+    onConfirm: (LocalDate) -> Unit,
+) {
+    // Material's DatePicker works in UTC-midnight millis; convert via UTC on
+    // both ends so negative-offset zones don't land a day early.
+    val today = LocalDate.now()
+    val pickerState = rememberDatePickerState(
+        initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+        yearRange = (today.year - 120)..today.year,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                utcTimeMillis <= today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        }
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                pickerState.selectedDateMillis?.let { ms ->
+                    onConfirm(Instant.ofEpochMilli(ms).atZone(ZoneOffset.UTC).toLocalDate())
+                } ?: onDismiss()
+            }) { Text("OK") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    ) {
+        DatePicker(state = pickerState, title = { Text("Birthdate", modifier = Modifier.padding(start = 24.dp, top = 16.dp)) })
     }
 }
 
