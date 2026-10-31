@@ -114,6 +114,7 @@ fun SettingsScreen(
             item {
                 ProfileHero(
                     name = profile.name,
+                    age = profile.age,
                     isPro = isPro,
                     onUpgrade = onNavigateToUpgrade,
                 )
@@ -402,6 +403,7 @@ private fun SettingsGroup(
 @Composable
 private fun ProfileHero(
     name: String,
+    age: Int?,
     isPro: Boolean,
     onUpgrade: () -> Unit,
 ) {
@@ -443,6 +445,13 @@ private fun ProfileHero(
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
+                if (age != null) {
+                    Text(
+                        text = "$age years old",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 if (isPro) {
                     Text(
                         text = "Pro Member",
