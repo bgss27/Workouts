@@ -42,8 +42,10 @@ fun SettingsScreen(
     proManager: ProManager,
     onNavigateToUpgrade: () -> Unit,
     onNavigateToBodyMetrics: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToAccount: () -> Unit = {},
 ) {
+    val syncEmail by appModule.accountManager.email.collectAsState()
     val context = LocalContext.current
     val viewModel: SettingsViewModel = viewModel(
         factory = SettingsViewModel.Factory(context, proManager)
@@ -281,6 +283,24 @@ fun SettingsScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // Cloud sync
+            item {
+                SettingsGroup(label = "Cloud sync") {
+                    ListRow(
+                        title = syncEmail ?: "Sync across devices",
+                        subtitle = when {
+                            !com.fittrack.app.sync.SupabaseProvider.isConfigured -> "Not set up in this build"
+                            syncEmail != null -> "Signed in · workouts sync in the background"
+                            else -> "Sign in to keep your history on every phone"
+                        },
+                        icon = Icons.Default.CloudSync,
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        onClick = onNavigateToAccount,
+                        trailing = { SmallChevron() },
+                    )
                 }
             }
 

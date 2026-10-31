@@ -10,6 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.fittrack.app.data.db.dao.BodyMetricDao
 import com.fittrack.app.data.db.dao.ExerciseDao
 import com.fittrack.app.data.db.dao.RoutineDao
+import com.fittrack.app.data.db.dao.SyncDao
 import com.fittrack.app.data.db.dao.UserPlanDao
 import com.fittrack.app.data.db.dao.WorkoutDao
 import com.fittrack.app.data.db.dao.WorkoutSetDao
@@ -165,9 +166,10 @@ internal val SEED_EXERCISES: List<Exercise> = listOf(
         Routine::class,
         RoutineExercise::class,
         UserPlan::class,
-        BodyMetric::class
+        BodyMetric::class,
+        SyncTombstone::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -178,6 +180,7 @@ abstract class FitTrackDatabase : RoomDatabase() {
     abstract fun routineDao(): RoutineDao
     abstract fun userPlanDao(): UserPlanDao
     abstract fun bodyMetricDao(): BodyMetricDao
+    abstract fun syncDao(): SyncDao
 
     companion object {
         @Volatile
@@ -336,22 +339,55 @@ abstract class FitTrackDatabase : RoomDatabase() {
             }
         }
 
+        const val DB_NAME = "fittrack_database"
+        /** Must match the @Database version above; checked by DatabaseBackup. */
+        const val DB_VERSION = 9
+
         /** Application context for the one-time catalog import in onCreate. */
         @Volatile private var seedContext: Context? = null
+
+        /**
+         * Cloud sync columns. Nullable with no defaults so the ALTERs match the
+         * entity definitions exactly; the sync engine assigns remote ids on
+         * first run. The exercises table is extended for custom exercises;
+         * catalog rows get deterministic ids at runtime.
+         */
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                for (t in listOf("workouts", "workout_exercises", "workout_sets", "exercises")) {
+                    db.execSQL("ALTER TABLE $t ADD COLUMN remoteId TEXT")
+                    db.execSQL("ALTER TABLE $t ADD COLUMN updatedAt INTEGER")
+                    db.execSQL("ALTER TABLE $t ADD COLUMN dirty INTEGER")
+                }
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS sync_tombstones (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        tableName TEXT NOT NULL,
+                        remoteId TEXT NOT NULL,
+                        deletedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
 
         fun getInstance(context: Context): FitTrackDatabase {
             seedContext = context.applicationContext
             return INSTANCE ?: synchronized(this) {
+                // Snapshot the file before Room touches it with a newer schema.
+                // Cheap, and it means a bad migration is recoverable.
+                DatabaseBackup.backupBeforeUpgrade(context.applicationContext, DB_NAME, DB_VERSION)
+
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     FitTrackDatabase::class.java,
-                    "fittrack_database"
+                    DB_NAME
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
-                    // Kept as a development-time safety net only. Each new schema
-                    // version MUST register a real migration above; relying on the
-                    // fallback in production wipes user data silently.
-                    .fallbackToDestructiveMigration()
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                    // No destructive fallback: a schema bump without a registered
+                    // migration must crash in development, never wipe a user's
+                    // history in production.
                     .addCallback(SeedCallback())
                     .build()
                 INSTANCE = instance

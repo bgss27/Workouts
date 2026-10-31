@@ -16,4 +16,11 @@ data class Exercise(
      * the bodyweight bucket and dilute the "train at home" generator.
      */
     val equipment: Equipment = Equipment.BARBELL,
+    /**
+     * Cloud sync. Catalog rows use a deterministic "catalog:<normalized name>"
+     * so every device agrees on them without syncing; custom rows get a UUID.
+     */
+    val remoteId: String? = null,
+    val updatedAt: Long? = null,
+    val dirty: Boolean? = null,
 )

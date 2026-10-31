@@ -38,4 +38,8 @@ data class WorkoutExercise(
      * convention we use the [id] of the first member of the group.
      */
     val supersetGroup: Long? = null,
+    /** Cloud sync: global id, last local change (epoch ms), pending push. */
+    val remoteId: String? = null,
+    val updatedAt: Long? = null,
+    val dirty: Boolean? = null,
 )

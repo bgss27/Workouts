@@ -24,5 +24,9 @@ data class WorkoutSet(
     val reps: Int,
     val weightKg: Double,
     val isWarmup: Boolean = false,
-    val rpe: Int? = null
+    val rpe: Int? = null,
+    /** Cloud sync: global id, last local change (epoch ms), pending push. */
+    val remoteId: String? = null,
+    val updatedAt: Long? = null,
+    val dirty: Boolean? = null,
 )
