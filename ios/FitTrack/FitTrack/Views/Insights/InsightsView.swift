@@ -28,6 +28,8 @@ struct InsightsView: View {
                 }
                 .padding()
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.fitBackground)
             .navigationTitle(selectedInsight != nil ? selectedInsight!.muscleGroup.displayName : "Insights")
             .toolbar {
                 if selectedInsight != nil {
@@ -95,7 +97,7 @@ struct InsightsView: View {
                 }
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(Color.fitSurfaceLow)
             .cornerRadius(12)
         }
         .buttonStyle(.plain)
@@ -165,7 +167,7 @@ struct InsightsView: View {
                 scoreItem("Sets/Wk", String(format: "%.0f", insight.weeklyVolumeSets), .accentColor)
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(Color.fitSurfaceLow)
             .cornerRadius(12)
 
             // Phase & Recovery
@@ -177,7 +179,7 @@ struct InsightsView: View {
             }
             .font(.caption)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(Color.fitSurfaceLow)
             .cornerRadius(12)
 
             if insight.isPlateaued {
@@ -236,7 +238,7 @@ struct InsightsView: View {
                         Text("\(ex.sessionCount) sessions").font(.caption2).opacity(0.5)
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(Color.fitSurfaceLow)
                     .cornerRadius(10)
                 }
             }

@@ -41,6 +41,8 @@ struct UpgradeView: View {
             }
             .padding()
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.fitBackground)
         .navigationTitle("Upgrade")
     }
 
@@ -235,7 +237,7 @@ struct UpgradeView: View {
                 }
             }
             .padding()
-            .background(isSelected ? Color.accentColor.opacity(0.10) : Color(.secondarySystemBackground))
+            .background(isSelected ? Color.accentColor.opacity(0.10) : Color.fitSurfaceLow)
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)

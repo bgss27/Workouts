@@ -256,6 +256,8 @@ extension ProManager {
         static let customRoutineLimit = 3
         static let historyDays = 30
         static let insightPreviewCount = 1
+        /// Custom exercises the free tier may create. Mirrors Android's FreeLimits.
+        static let customExerciseLimit = 7
     }
 }
 

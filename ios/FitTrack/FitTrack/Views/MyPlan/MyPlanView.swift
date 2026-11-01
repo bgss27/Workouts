@@ -17,6 +17,8 @@ struct MyPlanView: View {
                         .buttonStyle(.borderedProminent)
                 }
                 .padding()
+                .scrollContentBackground(.hidden)
+                .background(Color.fitBackground)
                 .navigationTitle("My Plan")
             } else {
                 List {
@@ -71,6 +73,8 @@ struct MyPlanView: View {
                         Button("Clear Plan", role: .destructive) { showClearAlert = true }
                     }
                 }
+                .scrollContentBackground(.hidden)
+                .background(Color.fitBackground)
                 .navigationTitle("My Plan")
                 .alert("Clear Plan?", isPresented: $showClearAlert) {
                     Button("Clear", role: .destructive) { clearPlan() }

@@ -2,9 +2,16 @@ import SwiftUI
 import SwiftData
 
 struct ExercisesView: View {
+    @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var proManager: ProManager
     @Query(sort: \Exercise.name) private var allExercises: [Exercise]
     @State private var searchText = ""
     @State private var selectedGroup: MuscleGroup?
+    @State private var showCustomSheet = false
+    @State private var editingCustom: Exercise?
+    @State private var deleteBlockedName: String?
+
+    private var customCount: Int { allExercises.filter(\.isCustom).count }
 
     private var filteredExercises: [Exercise] {
         allExercises.filter { ex in
@@ -30,7 +37,7 @@ struct ExercisesView: View {
                     ForEach(groupedExercises, id: \.0) { group, exercises in
                         Section {
                             ForEach(exercises.sorted { $0.name < $1.name }, id: \.self) { exercise in
-                                ExerciseRow(exercise: exercise)
+                                customAwareRow(exercise)
                             }
                         } header: {
                             HStack {
@@ -55,14 +62,44 @@ struct ExercisesView: View {
                             .foregroundColor(.secondary)
                     }
                     ForEach(filteredExercises.sorted { $0.name < $1.name }, id: \.self) { exercise in
-                        ExerciseRow(exercise: exercise)
+                        customAwareRow(exercise)
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.fitBackground)
             .searchable(text: $searchText, prompt: "Search exercises")
             .navigationTitle("Exercises")
+            .sheet(isPresented: $showCustomSheet) {
+                CustomExerciseSheet(
+                    existing: nil,
+                    freeLimit: ProManager.FreeTier.customExerciseLimit,
+                    isPro: proManager.isPro,
+                    currentCustomCount: customCount
+                ) { _ in }
+            }
+            .sheet(item: $editingCustom) { exercise in
+                CustomExerciseSheet(
+                    existing: exercise,
+                    freeLimit: ProManager.FreeTier.customExerciseLimit,
+                    isPro: proManager.isPro,
+                    currentCustomCount: customCount
+                ) { _ in }
+            }
+            .alert("Can't delete \(deleteBlockedName ?? "")", isPresented: Binding(
+                get: { deleteBlockedName != nil },
+                set: { if !$0 { deleteBlockedName = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("It's used in a logged workout or a routine. Remove it there first.")
+            }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button { showCustomSheet = true } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("New custom exercise")
                     Menu {
                         Button("All") { selectedGroup = nil }
                         Divider()
@@ -89,6 +126,38 @@ struct ExercisesView: View {
     }
 }
 
+extension ExercisesView {
+    /// Catalog rows are plain; custom rows get edit / delete in a context menu.
+    @ViewBuilder
+    fileprivate func customAwareRow(_ exercise: Exercise) -> some View {
+        if exercise.isCustom {
+            ExerciseRow(exercise: exercise)
+                .contextMenu {
+                    Button { editingCustom = exercise } label: { Label("Edit", systemImage: "pencil") }
+                    Button(role: .destructive) { deleteCustom(exercise) } label: { Label("Delete", systemImage: "trash") }
+                }
+        } else {
+            ExerciseRow(exercise: exercise)
+        }
+    }
+
+    /// Refuse to delete an exercise that history or a routine still points at,
+    /// so logged sets never lose their name.
+    fileprivate func deleteCustom(_ exercise: Exercise) {
+        let id = exercise.persistentModelID
+        let usedInWorkouts = ((try? modelContext.fetch(FetchDescriptor<WorkoutExercise>())) ?? [])
+            .contains { $0.exercise?.persistentModelID == id }
+        let usedInRoutines = ((try? modelContext.fetch(FetchDescriptor<RoutineExercise>())) ?? [])
+            .contains { $0.exercise?.persistentModelID == id }
+        if usedInWorkouts || usedInRoutines {
+            deleteBlockedName = exercise.name
+            return
+        }
+        modelContext.delete(exercise)
+        try? modelContext.save()
+    }
+}
+
 struct ExerciseRow: View {
     let exercise: Exercise
     @State private var expanded = false
@@ -101,9 +170,19 @@ struct ExerciseRow: View {
                         Text(exercise.name)
                             .font(.subheadline.bold())
                             .foregroundColor(.primary)
-                        Text(exercise.muscleGroup.displayName)
-                            .font(.caption)
-                            .foregroundColor(.accentColor)
+                        HStack(spacing: 6) {
+                            Text(exercise.muscleGroup.displayName)
+                                .font(.caption)
+                                .foregroundColor(.accentColor)
+                            if exercise.isCustom {
+                                Text("CUSTOM")
+                                    .font(.caption2.weight(.heavy))
+                                    .padding(.horizontal, 5).padding(.vertical, 1)
+                                    .background(Color.fitSecondary.opacity(0.2))
+                                    .foregroundStyle(Color.fitSecondary)
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                            }
+                        }
                     }
                     Spacer()
                     Image(systemName: expanded ? "chevron.up" : "chevron.down")

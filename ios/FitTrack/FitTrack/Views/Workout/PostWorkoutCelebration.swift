@@ -1,78 +1,135 @@
 import SwiftUI
 import UIKit
 
-/// Full-screen celebration shown after a workout that produced one or more
-/// 1RM personal records. Bouncy trophy + delta cards + auto-dismiss after
-/// 6 seconds. Mirrors the Android `PostWorkoutCelebration` (without confetti
-/// — iOS doesn't have a built-in particle library and pulling one in for a
-/// 6-second flourish isn't worth the dependency).
+/// Full-screen summary shown after every finished workout: duration, sets,
+/// volume, any 1RM personal records, and a Share button that renders the
+/// workout card. Mirrors the Android `PostWorkoutCelebration`.
 struct PostWorkoutCelebration: View {
+    let summary: WorkoutShareSummary
     let prs: [PRResult]
     let displayUnit: String  // "kg" or "lbs"
     let onDismiss: () -> Void
 
     @State private var trophyScale: CGFloat = 0.6
     @State private var cardScale: CGFloat = 0.85
+    @State private var shareImage: UIImage?
+
+    private var hasPRs: Bool { !prs.isEmpty }
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.45).ignoresSafeArea()
+            Color.black.opacity(0.55).ignoresSafeArea()
 
             VStack(spacing: 18) {
-                Image(systemName: "trophy.fill")
-                    .font(.system(size: 64))
-                    .foregroundStyle(.yellow)
+                Image(systemName: hasPRs ? "trophy.fill" : "checkmark.seal.fill")
+                    .font(.system(size: 60))
+                    .foregroundStyle(hasPRs ? Color.yellow : Color.fitPrimary)
                     .scaleEffect(trophyScale)
 
-                Text(prs.count == 1 ? "New Personal Record!" : "\(prs.count) New PRs!")
-                    .font(.title2.bold())
+                Text(headline)
+                    .font(.system(.title2, design: .rounded).bold())
                     .multilineTextAlignment(.center)
 
-                VStack(spacing: 8) {
-                    ForEach(prs.prefix(3)) { pr in
-                        PrRow(pr: pr, displayUnit: displayUnit)
-                    }
-                    if prs.count > 3 {
-                        Text("+\(prs.count - 3) more")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                HStack(spacing: 10) {
+                    SummaryStat(value: "\(summary.durationMinutes)", label: "min")
+                    SummaryStat(value: "\(summary.setCount)", label: "sets")
+                    SummaryStat(value: summary.volumeText, label: summary.unit)
+                }
+
+                if summary.streakWeeks > 1 {
+                    Label("\(summary.streakWeeks)-week streak", systemImage: "flame.fill")
+                        .font(.caption.bold())
+                        .foregroundStyle(Color.fitOnPrimary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.fitPrimary)
+                        .clipShape(Capsule())
+                }
+
+                if hasPRs {
+                    VStack(spacing: 8) {
+                        ForEach(prs.prefix(3)) { pr in
+                            PrRow(pr: pr, displayUnit: displayUnit)
+                        }
+                        if prs.count > 3 {
+                            Text("+\(prs.count - 3) more")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
 
-                Button(action: onDismiss) {
-                    Text("Continue")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
+                HStack(spacing: 10) {
+                    Button {
+                        shareImage = WorkoutShareRenderer.render(summary)
+                    } label: {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(TonalButtonStyle())
+
+                    Button(action: onDismiss) {
+                        Text("Continue")
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
                 }
-                .buttonStyle(.borderedProminent)
                 .padding(.top, 4)
             }
             .padding(24)
             .frame(maxWidth: 360)
-            .background(Color(.systemBackground))
-            .cornerRadius(28)
+            .background(Color.fitSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
             .shadow(radius: 14)
             .scaleEffect(cardScale)
             .padding()
         }
         .onAppear {
-            // Heavy + heavy haptic combo to feel celebratory.
-            let notif = UINotificationFeedbackGenerator()
-            notif.notificationOccurred(.success)
-            // Spring-bouncy entrance for the card; trophy bounces in slightly
-            // after so the eye lands on the headline first.
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
             withAnimation(.spring(response: 0.55, dampingFraction: 0.55)) {
                 cardScale = 1.0
             }
             withAnimation(.spring(response: 0.6, dampingFraction: 0.5).delay(0.1)) {
                 trophyScale = 1.0
             }
-            // Auto-dismiss after 6 seconds matches the Android behavior — if
-            // the user puts the phone down we don't block the workout flow.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
-                onDismiss()
+        }
+        .sheet(isPresented: Binding(get: { shareImage != nil }, set: { if !$0 { shareImage = nil } })) {
+            if let shareImage {
+                ShareImageSheet(image: shareImage, text: shareText)
+                    .presentationDetents([.medium, .large])
             }
         }
+    }
+
+    private var headline: String {
+        if prs.count == 1 { return "New Personal Record!" }
+        if prs.count > 1 { return "\(prs.count) New PRs!" }
+        return "Workout complete"
+    }
+
+    private var shareText: String {
+        "\(summary.durationMinutes) min · \(summary.setCount) sets · \(summary.volumeText) \(summary.unit) with FitTrack"
+    }
+}
+
+private struct SummaryStat: View {
+    let value: String
+    let label: String
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 24, weight: .heavy, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            Text(label.uppercased())
+                .font(.caption2.weight(.bold))
+                .tracking(1.2)
+                .foregroundStyle(Color.fitOnSurfaceVariant)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(Color.fitSurfaceHigh)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 

@@ -100,6 +100,8 @@ struct LogPastWorkoutView: View {
                         .lineLimit(2...5)
                 } header: { Text("Notes (optional)") }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.fitBackground)
             .navigationTitle("Log Past Workout")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -244,6 +246,8 @@ struct LogPastWorkoutView: View {
                 }
             }
             .searchable(text: $pickerSearchText)
+            .scrollContentBackground(.hidden)
+            .background(Color.fitBackground)
             .navigationTitle("Add Exercise")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -321,7 +325,7 @@ private struct LogPastFilterChip: View {
                 .font(.caption)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(selected ? Color.accentColor : Color(.secondarySystemBackground))
+                .background(selected ? Color.accentColor : Color.fitSurfaceLow)
                 .foregroundColor(selected ? .white : .primary)
                 .cornerRadius(14)
         }

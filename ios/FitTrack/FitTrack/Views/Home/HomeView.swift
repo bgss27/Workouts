@@ -24,6 +24,11 @@ struct HomeView: View {
     @State private var swapState: PlanSwapState?
     @State private var swapToast: String?
 
+    /// A workout the app was killed in the middle of; offered for resume at
+    /// the top of Home until it's finished or discarded.
+    @State private var resumeDraft: WorkoutDraft?
+    @State private var navigateToResume = false
+
     /// Suggested muscle group when opening the sheet — primary muscle of the
     /// first plan day's routine, or chest as the catch-all default.
     private var suggestedHomeMuscleGroup: MuscleGroup? {
@@ -40,6 +45,10 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    if let draft = resumeDraft {
+                        resumeTile(draft)
+                    }
+
                     // My Plan preview
                     if !userPlans.isEmpty {
                         myPlanSection
@@ -99,7 +108,7 @@ struct HomeView: View {
                             Image(systemName: "chevron.right").opacity(0.5)
                         }
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(Color.fitSurfaceLow)
                         .cornerRadius(12)
                     }
                     .buttonStyle(.plain)
@@ -112,8 +121,13 @@ struct HomeView: View {
                 }
                 .padding()
             }
+            .fitScreenBackground()
             .navigationTitle("FitTrack")
             .task { await healthKit.refreshSteps() }
+            .onAppear { refreshResumeDraft() }
+            .navigationDestination(isPresented: $navigateToResume) {
+                ActiveWorkoutView(routine: nil, resumeDraft: resumeDraft)
+            }
             .sheet(isPresented: $showHomeWorkoutSheet) {
                 HomeWorkoutSheet(defaultGroup: suggestedHomeMuscleGroup) { exercises in
                     pendingHomeExercises = exercises
@@ -159,6 +173,38 @@ struct HomeView: View {
                 set: { if !$0 { swapToast = nil } }
             )) {
                 Button("OK", role: .cancel) {}
+            }
+        }
+    }
+
+    // MARK: - Resume
+
+    private func refreshResumeDraft() {
+        guard let draft = WorkoutDraftStore.load(),
+              WorkoutDraftStore.resolveWorkout(draft, in: modelContext) != nil else {
+            resumeDraft = nil
+            return
+        }
+        resumeDraft = draft
+    }
+
+    private func resumeTile(_ draft: WorkoutDraft) -> some View {
+        let logged = draft.exercises.reduce(0) { $0 + $1.sets.filter { $0.isCompleted && !$0.isWarmup }.count }
+        return Tile {
+            HStack(spacing: 14) {
+                IconBadge(systemName: "play.fill", tint: .fitTertiary, size: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Workout in progress").font(.subheadline.weight(.semibold))
+                    Text("\(draft.exercises.count) exercises · \(logged) sets logged · started \(draft.startedAt.formatted(date: .omitted, time: .shortened))")
+                        .font(.caption).foregroundStyle(Color.fitOnSurfaceVariant)
+                }
+                Spacer()
+                Button("Resume") { navigateToResume = true }
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(Color.fitPrimary)
+                    .foregroundStyle(Color.fitOnPrimary)
+                    .clipShape(Capsule())
             }
         }
     }
@@ -264,7 +310,7 @@ struct HomeView: View {
                             }
                             .padding()
                             .frame(width: 170)
-                            .background(Color(.secondarySystemBackground))
+                            .background(Color.fitSurfaceLow)
                             .cornerRadius(12)
                         }
                         .buttonStyle(.plain)
@@ -286,7 +332,7 @@ struct HomeView: View {
                 Image(systemName: "chevron.right").opacity(0.5)
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(Color.fitSurfaceLow)
             .cornerRadius(12)
         }
         .buttonStyle(.plain)
@@ -314,18 +360,33 @@ struct HomeView: View {
         let totalVolume = isLbs ? totalVolumeKg * 2.2046226218 : totalVolumeKg
         let unit = isLbs ? "lbs" : "kg"
 
-        return VStack(alignment: .leading, spacing: 12) {
-            Text("Your Progress").font(.subheadline.bold())
-            HStack {
-                HomeStat(value: "\(completed.count)", label: "Total")
-                HomeStat(value: "\(thisWeek)", label: "This Week")
-                HomeStat(value: formatVolume(totalVolume), label: "Volume (\(unit))")
+        let streak = StreakCalculator.compute(completedStartTimes: completed.map(\.startTime))
+
+        return Tile {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Overline(text: "Your progress")
+                    Spacer()
+                    HStack(spacing: 5) {
+                        Image(systemName: "flame.fill").font(.caption.weight(.bold))
+                        Text(streak.currentWeeks > 0 ? "\(streak.currentWeeks)-week streak" : "Start a streak")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(streak.currentWeeks > 0 ? Color.fitPrimary : Color.fitSurfaceHigh)
+                    .foregroundStyle(streak.currentWeeks > 0 ? Color.fitOnPrimary : Color.fitOnSurfaceVariant)
+                    .clipShape(Capsule())
+                }
+                HStack(alignment: .top) {
+                    StatValue(value: "\(completed.count)", label: "Total", tint: .fitPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    StatValue(value: "\(thisWeek)", label: "This week")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    StatValue(value: formatVolume(totalVolume), label: "Volume (\(unit))")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color.accentColor.opacity(0.1))
-        .cornerRadius(12)
     }
 
     /// Compact volume formatting that matches the Android `formatVolume` helper.
@@ -365,7 +426,7 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
-        .background(Color(.secondarySystemBackground))
+        .background(Color.fitSurfaceLow)
         .cornerRadius(10)
     }
 
@@ -395,7 +456,7 @@ struct HomeView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(Color.fitSurfaceLow)
                     .cornerRadius(10)
                 }
             }
@@ -451,7 +512,7 @@ private struct StepsCard: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.fitSurfaceLow)
         .cornerRadius(12)
     }
 
@@ -607,6 +668,11 @@ struct ExerciseProgressView: View {
     /// set changes. Cached so the LazyVStack doesn't recompute on every
     /// SwiftUI render pass — for a large catalog this matters.
     @State private var sparklineData: [PersistentIdentifier: [ProgressDataPoint]] = [:]
+    /// Exercises that appear in at least one completed workout. The list is
+    /// limited to these — a 700-row catalog of untouched exercises buries the
+    /// ones the user actually trains.
+    @State private var historyIDs: Set<PersistentIdentifier> = []
+    @State private var historyLoaded = false
 
     private var isLbs: Bool { unit == "lbs" }
     private func toDisplay(_ kg: Double) -> Double {
@@ -618,8 +684,9 @@ struct ExerciseProgressView: View {
     }
 
     private var filteredExercises: [Exercise] {
-        guard let group = selectedMuscleGroup else { return exercises }
-        return exercises.filter { $0.muscleGroup == group }
+        let withHistory = exercises.filter { historyIDs.contains($0.persistentModelID) }
+        guard let group = selectedMuscleGroup else { return withHistory }
+        return withHistory.filter { $0.muscleGroup == group }
     }
 
     var body: some View {
@@ -634,6 +701,15 @@ struct ExerciseProgressView: View {
                 Text("Select an exercise to view progress")
                     .font(.subheadline.bold())
                     .padding(.horizontal)
+
+                if historyLoaded && filteredExercises.isEmpty {
+                    Text(selectedMuscleGroup == nil
+                         ? "Complete a workout to see your exercises here."
+                         : "No logged exercises for this muscle group yet.")
+                        .font(.caption)
+                        .foregroundStyle(Color.fitOnSurfaceVariant)
+                        .padding(.horizontal)
+                }
 
                 LazyVStack(spacing: 4) {
                     ForEach(filteredExercises, id: \.persistentModelID) { exercise in
@@ -657,7 +733,7 @@ struct ExerciseProgressView: View {
                             .background(
                                 selectedExercise?.persistentModelID == exercise.persistentModelID
                                     ? Color.accentColor.opacity(0.1)
-                                    : Color(.secondarySystemBackground)
+                                    : Color.fitSurfaceLow
                             )
                             .cornerRadius(10)
                         }
@@ -681,13 +757,17 @@ struct ExerciseProgressView: View {
 
     private func rebuildSparklineData() async {
         var map: [PersistentIdentifier: [ProgressDataPoint]] = [:]
+        var seen: Set<PersistentIdentifier> = []
         for exercise in exercises {
             let pts = ProgressMath.dataPoints(for: exercise, across: completedWorkouts)
+            if !pts.isEmpty { seen.insert(exercise.persistentModelID) }
             if pts.count >= 2 {
                 map[exercise.persistentModelID] = Array(pts.suffix(8))
             }
         }
         sparklineData = map
+        historyIDs = seen
+        historyLoaded = true
     }
 
     private var muscleGroupChips: some View {
@@ -753,7 +833,7 @@ struct ExerciseProgressView: View {
             }
         }
         .padding(.vertical, 12)
-        .background(Color(.secondarySystemBackground))
+        .background(Color.fitSurfaceLow)
         .cornerRadius(12)
         .padding(.horizontal)
     }

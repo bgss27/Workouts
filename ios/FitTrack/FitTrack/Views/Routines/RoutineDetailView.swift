@@ -39,6 +39,8 @@ struct RoutineDetailView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.fitBackground)
         .navigationTitle(routine.name)
         .toolbar {
             NavigationLink(destination: ActiveWorkoutView(routine: routine)) {

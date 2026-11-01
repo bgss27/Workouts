@@ -73,7 +73,7 @@ struct RoutineListView: View {
                                         Text("\(routine.exercises.count) ex").font(.caption).foregroundColor(.accentColor)
                                     }
                                     .padding(12)
-                                    .background(Color(.secondarySystemBackground))
+                                    .background(Color.fitSurfaceLow)
                                     .cornerRadius(8)
                                 }
                                 .buttonStyle(.plain)
@@ -104,7 +104,7 @@ struct RoutineListView: View {
                                         }
                                     }
                                     .padding()
-                                    .background(Color(.secondarySystemBackground))
+                                    .background(Color.fitSurfaceLow)
                                     .cornerRadius(12)
                                 }
                                 .buttonStyle(.plain)
@@ -115,6 +115,8 @@ struct RoutineListView: View {
                 }
                 .padding(.bottom, 16)
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.fitBackground)
             .navigationTitle("Routines")
             .overlay(alignment: .bottom) {
                 if let msg = toastMessage {
@@ -160,7 +162,7 @@ struct FilterChipView: View {
         Button(action: action) {
             Text(label).font(.caption.bold())
                 .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(selected ? Color.accentColor : Color(.secondarySystemBackground))
+                .background(selected ? Color.accentColor : Color.fitSurfaceLow)
                 .foregroundColor(selected ? .white : .primary)
                 .cornerRadius(20)
         }

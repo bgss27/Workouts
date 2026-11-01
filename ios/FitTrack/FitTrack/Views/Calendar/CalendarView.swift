@@ -54,6 +54,8 @@ struct CalendarView: View {
                 }
                 .padding(.vertical, 8)
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.fitBackground)
             .navigationTitle("Calendar")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -218,7 +220,7 @@ struct CalendarView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(Color.fitSurfaceLow)
                     .cornerRadius(10)
                     .padding(.horizontal)
                 } else if date > Date() {

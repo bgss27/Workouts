@@ -51,6 +51,14 @@
 		AA000001000000000000051 /* Color+FitTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000151 /* Color+FitTrack.swift */; };
 		AA000001000000000000052 /* free_exercise_db.json in Resources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000152 /* free_exercise_db.json */; };
 		AA000001000000000000053 /* LogPastWorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000153 /* LogPastWorkoutView.swift */; };
+		AA000001000000000000054 /* FitTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000154 /* FitTheme.swift */; };
+		AA000001000000000000055 /* WorkoutDraftStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000155 /* WorkoutDraftStore.swift */; };
+		AA000001000000000000056 /* StreakCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000156 /* StreakCalculator.swift */; };
+		AA000001000000000000057 /* WorkoutShareCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000157 /* WorkoutShareCard.swift */; };
+		AA000001000000000000058 /* BodyMetric.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000158 /* BodyMetric.swift */; };
+		AA000001000000000000059 /* BodyMetricsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000159 /* BodyMetricsView.swift */; };
+		AA00000100000000000005A /* CustomExerciseSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000015A /* CustomExerciseSheet.swift */; };
+		AA00000100000000000005B /* StoreBackup.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000015B /* StoreBackup.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -101,6 +109,14 @@
 		AA000001000000000000151 /* Color+FitTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+FitTrack.swift"; sourceTree = "<group>"; };
 		AA000001000000000000152 /* free_exercise_db.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = free_exercise_db.json; sourceTree = "<group>"; };
 		AA000001000000000000153 /* LogPastWorkoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogPastWorkoutView.swift; sourceTree = "<group>"; };
+		AA000001000000000000154 /* FitTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitTheme.swift; sourceTree = "<group>"; };
+		AA000001000000000000155 /* WorkoutDraftStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutDraftStore.swift; sourceTree = "<group>"; };
+		AA000001000000000000156 /* StreakCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakCalculator.swift; sourceTree = "<group>"; };
+		AA000001000000000000157 /* WorkoutShareCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutShareCard.swift; sourceTree = "<group>"; };
+		AA000001000000000000158 /* BodyMetric.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyMetric.swift; sourceTree = "<group>"; };
+		AA000001000000000000159 /* BodyMetricsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyMetricsView.swift; sourceTree = "<group>"; };
+		AA00000100000000000015A /* CustomExerciseSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomExerciseSheet.swift; sourceTree = "<group>"; };
+		AA00000100000000000015B /* StoreBackup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreBackup.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -150,6 +166,7 @@
 		AA000001000000000000330 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				AA000001000000000000158 /* BodyMetric.swift */,
 				AA000001000000000000103 /* MuscleGroup.swift */,
 				AA000001000000000000104 /* Exercise.swift */,
 				AA000001000000000000105 /* Workout.swift */,
@@ -167,6 +184,9 @@
 		AA000001000000000000340 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				AA00000100000000000015B /* StoreBackup.swift */,
+				AA000001000000000000156 /* StreakCalculator.swift */,
+				AA000001000000000000155 /* WorkoutDraftStore.swift */,
 				AA000001000000000000111 /* SeedData.swift */,
 				AA000001000000000000112 /* ProManager.swift */,
 				AA000001000000000000127 /* TimeOfDayAdvisor.swift */,
@@ -221,6 +241,7 @@
 		AA000001000000000000362 /* Workout */ = {
 			isa = PBXGroup;
 			children = (
+				AA000001000000000000157 /* WorkoutShareCard.swift */,
 				AA000001000000000000117 /* ActiveWorkoutView.swift */,
 				AA000001000000000000149 /* PostWorkoutCelebration.swift */,
 				AA000001000000000000153 /* LogPastWorkoutView.swift */,
@@ -264,6 +285,7 @@
 		AA000001000000000000367 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				AA000001000000000000159 /* BodyMetricsView.swift */,
 				AA000001000000000000125 /* SettingsView.swift */,
 			);
 			path = Settings;
@@ -272,6 +294,7 @@
 		AA000001000000000000368 /* Exercises */ = {
 			isa = PBXGroup;
 			children = (
+				AA00000100000000000015A /* CustomExerciseSheet.swift */,
 				AA000001000000000000126 /* ExercisesView.swift */,
 				AA000001000000000000129 /* MovementAnimationView.swift */,
 				AA000001000000000000131 /* ExerciseImageGalleryView.swift */,
@@ -290,6 +313,7 @@
 		AA00000100000000000036A /* Theme */ = {
 			isa = PBXGroup;
 			children = (
+				AA000001000000000000154 /* FitTheme.swift */,
 				AA000001000000000000151 /* Color+FitTrack.swift */,
 			);
 			path = Theme;
@@ -365,6 +389,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA00000100000000000005B /* StoreBackup.swift in Sources */,
+				AA00000100000000000005A /* CustomExerciseSheet.swift in Sources */,
+				AA000001000000000000059 /* BodyMetricsView.swift in Sources */,
+				AA000001000000000000058 /* BodyMetric.swift in Sources */,
+				AA000001000000000000057 /* WorkoutShareCard.swift in Sources */,
+				AA000001000000000000056 /* StreakCalculator.swift in Sources */,
+				AA000001000000000000055 /* WorkoutDraftStore.swift in Sources */,
+				AA000001000000000000054 /* FitTheme.swift in Sources */,
 				AA000001000000000000001 /* FitTrackApp.swift in Sources */,
 				AA000001000000000000002 /* ContentView.swift in Sources */,
 				AA000001000000000000003 /* MuscleGroup.swift in Sources */,

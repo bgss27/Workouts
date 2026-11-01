@@ -18,6 +18,7 @@ struct SettingsView: View {
     @AppStorage("profile_goal") private var fitnessGoal = "Build Muscle"
     @AppStorage("profile_experience") private var experienceLevel = "Intermediate"
     @AppStorage("profile_weightUnit") private var weightUnit = "kg"
+    @AppStorage(ThemeMode.storageKey) private var themeModeRaw = ThemeMode.defaultMode.rawValue
 
     let genders = ["Male", "Female", "Not specified"]
     let goals = ["Build Muscle", "Lose Weight", "Gain Strength", "Improve Endurance", "General Fitness"]
@@ -47,10 +48,15 @@ struct SettingsView: View {
                     HStack(spacing: 16) {
                         Image(systemName: "person.circle.fill")
                             .font(.system(size: 48))
-                            .foregroundColor(.accentColor)
-                        VStack(alignment: .leading) {
+                            .foregroundStyle(Color.fitPrimary)
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(name.isEmpty ? "Set up your profile" : name)
-                                .font(.headline)
+                                .font(.title3.bold())
+                            if let age {
+                                Text("\(age) years old")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                             Text(proManager.isPro ? "Pro Member" : "Free Plan")
                                 .font(.caption)
                                 .foregroundColor(proManager.isPro ? .accentColor : .secondary)
@@ -97,6 +103,33 @@ struct SettingsView: View {
                     Picker("Gender", selection: $gender) {
                         ForEach(genders, id: \.self) { Text($0) }
                     }
+
+                    // Body metrics (Pro) — the weight field above is a one-off
+                    // profile value; this is the dated history with trends.
+                    NavigationLink { BodyMetricsView() } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "scalemass.fill").foregroundStyle(Color.fitPrimary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Body Metrics").font(.subheadline.bold())
+                                Text("Weight, body fat, and measurements over time")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if !proManager.isPro {
+                                Image(systemName: "lock.fill").font(.caption).foregroundStyle(Color.fitTertiary)
+                            }
+                        }
+                    }
+                }
+
+                // Appearance
+                Section("Appearance") {
+                    Picker("Theme", selection: $themeModeRaw) {
+                        ForEach(ThemeMode.allCases) { Text($0.label).tag($0.rawValue) }
+                    }
+                    .pickerStyle(.segmented)
+                    Text("Dark is the default. System follows your device setting.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
 
                 // Fitness preferences
@@ -189,6 +222,8 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.fitBackground)
             .navigationTitle("Settings")
             .sheet(item: $shareItem) { item in
                 ShareSheet(url: item.url)

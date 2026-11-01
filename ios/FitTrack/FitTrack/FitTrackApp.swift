@@ -5,6 +5,11 @@ import SwiftData
 struct FitTrackApp: App {
     @StateObject private var proManager = ProManager()
     @StateObject private var healthKit = HealthKitService()
+    @AppStorage(ThemeMode.storageKey) private var themeModeRaw = ThemeMode.defaultMode.rawValue
+
+    init() {
+        FitAppearance.apply()
+    }
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -14,7 +19,13 @@ struct FitTrackApp: App {
             WorkoutSet.self,
             Routine.self,
             RoutineExercise.self,
-            UserPlan.self
+            UserPlan.self,
+            BodyMetric.self
+        ])
+        // Copy the store aside before a schema change touches it; see StoreBackup.
+        StoreBackup.backupIfSchemaChanged(modelNames: [
+            "Exercise", "Workout", "WorkoutExercise", "WorkoutSet",
+            "Routine", "RoutineExercise", "UserPlan", "BodyMetric",
         ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
@@ -30,6 +41,8 @@ struct FitTrackApp: App {
             ContentView()
                 .environmentObject(proManager)
                 .environmentObject(healthKit)
+                .preferredColorScheme((ThemeMode(rawValue: themeModeRaw) ?? ThemeMode.defaultMode).colorScheme)
+                .tint(Color.fitPrimary)
         }
         .modelContainer(sharedModelContainer)
     }
