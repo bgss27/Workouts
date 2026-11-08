@@ -11,6 +11,8 @@ final class Routine {
     var daysPerWeek: Int
     var programName: String?
     var dayOrder: Int
+    /// User-chosen grouping in the routine list. nil = unfiled.
+    var folder: String?
     @Relationship(deleteRule: .cascade) var exercises: [RoutineExercise]
 
     init(

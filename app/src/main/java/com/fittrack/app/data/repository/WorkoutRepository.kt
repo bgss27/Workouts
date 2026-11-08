@@ -5,6 +5,7 @@ import com.fittrack.app.data.db.dao.WorkoutDao
 import com.fittrack.app.data.db.dao.WorkoutSetDao
 import com.fittrack.app.data.entity.Workout
 import com.fittrack.app.data.entity.WorkoutExercise
+import com.fittrack.app.data.entity.SetType
 import com.fittrack.app.data.entity.WorkoutSet
 import com.fittrack.app.data.relation.WorkoutWithExercises
 import kotlinx.coroutines.flow.Flow
@@ -69,17 +70,30 @@ class WorkoutRepository(
             WorkoutExercise(workoutId = workoutId, exerciseId = exerciseId, orderIndex = orderIndex)
         )
 
-    suspend fun addSet(workoutExerciseId: Long, setNumber: Int, reps: Int, weightKg: Double, isWarmup: Boolean = false, rpe: Int? = null): Long =
+    suspend fun addSet(
+        workoutExerciseId: Long,
+        setNumber: Int,
+        reps: Int,
+        weightKg: Double,
+        isWarmup: Boolean = false,
+        rpe: Int? = null,
+        setType: SetType = if (isWarmup) SetType.WARMUP else SetType.WORKING,
+    ): Long =
         workoutSetDao.insertSet(
             WorkoutSet(
                 workoutExerciseId = workoutExerciseId,
                 setNumber = setNumber,
                 reps = reps,
                 weightKg = weightKg,
-                isWarmup = isWarmup,
-                rpe = rpe
+                isWarmup = setType == SetType.WARMUP,
+                rpe = rpe,
+                setType = setType,
             )
         )
+
+    /** Last completed session's non-warm-up sets for an exercise, in order. */
+    suspend fun getLastSessionSets(exerciseId: Long): List<WorkoutSet> =
+        workoutSetDao.getLastSessionSets(exerciseId)
 
     suspend fun updateSet(set: WorkoutSet) = workoutSetDao.updateSet(set)
 

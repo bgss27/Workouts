@@ -16,6 +16,12 @@ struct WorkoutDraft: Codable {
         var isWarmup: Bool
         var rpe: Int?
         var isCompleted: Bool
+        /// `SetType` raw value; nil in drafts written before set types existed.
+        var setType: String?
+
+        var resolvedType: SetType {
+            SetType(rawValue: setType ?? "") ?? (isWarmup ? .warmup : .working)
+        }
     }
 
     struct Exercise: Codable {
@@ -26,6 +32,8 @@ struct WorkoutDraft: Codable {
         var supersetGroup: Int?
         var isFinished: Bool
         var sets: [Set]
+        /// Session-only rest override for this exercise.
+        var restSeconds: Int?
     }
 
     var workoutID: PersistentIdentifier

@@ -7,6 +7,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Timer
+import com.fittrack.app.data.WorkoutPrefs
+import com.fittrack.app.ui.components.RestPickerDialog
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -28,13 +32,19 @@ fun RoutineDetailScreen(
         factory = RoutinesViewModel.Factory(
             appModule.routineSuggestionEngine,
             appModule.exerciseRepository,
-            appModule.userPlanRepository
+            appModule.userPlanRepository,
+            appModule.routineRepository,
         )
     )
 
     LaunchedEffect(routineId) {
         viewModel.loadRoutineDetail(routineId)
     }
+    val context = LocalContext.current
+    LaunchedEffect(Unit) { WorkoutPrefs.load(context) }
+    val defaultRest by WorkoutPrefs.defaultRestSeconds.collectAsState()
+    // Routine exercise whose rest length is being edited.
+    var restPickerFor by remember { mutableStateOf<com.fittrack.app.data.entity.RoutineExercise?>(null) }
 
     val routineDetail by viewModel.routineDetail.collectAsState()
     val exerciseMap by viewModel.exerciseMap.collectAsState()
@@ -176,6 +186,20 @@ fun RoutineDetailScreen(
                                     text = "${routineExercise.suggestedReps} reps",
                                     style = MaterialTheme.typography.bodySmall
                                 )
+                                AssistChip(
+                                    onClick = { restPickerFor = routineExercise },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    },
+                                    label = {
+                                        Text(
+                                            "Rest " + WorkoutPrefs.formatRest(routineExercise.restSeconds ?: defaultRest) +
+                                                if (routineExercise.restSeconds == null) "" else " ·",
+                                            style = MaterialTheme.typography.labelSmall,
+                                        )
+                                    },
+                                    modifier = Modifier.height(28.dp),
+                                )
                             }
                         }
                     }
@@ -185,5 +209,14 @@ fun RoutineDetailScreen(
                 item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
+    }
+
+    restPickerFor?.let { re ->
+        RestPickerDialog(
+            current = re.restSeconds,
+            defaultSeconds = defaultRest,
+            onSelect = { viewModel.updateRestSeconds(re.id, it) },
+            onDismiss = { restPickerFor = null },
+        )
     }
 }

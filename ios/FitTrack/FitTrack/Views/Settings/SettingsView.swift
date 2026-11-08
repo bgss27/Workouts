@@ -19,6 +19,8 @@ struct SettingsView: View {
     @AppStorage("profile_experience") private var experienceLevel = "Intermediate"
     @AppStorage("profile_weightUnit") private var weightUnit = "kg"
     @AppStorage(ThemeMode.storageKey) private var themeModeRaw = ThemeMode.defaultMode.rawValue
+    @AppStorage(RestTimerNotifier.defaultRestKey) private var defaultRestSeconds = 90
+    @AppStorage(RestTimerNotifier.alertsEnabledKey) private var restAlertsEnabled = true
 
     let genders = ["Male", "Female", "Not specified"]
     let goals = ["Build Muscle", "Lose Weight", "Gain Strength", "Improve Endurance", "General Fitness"]
@@ -129,6 +131,18 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
                     Text("Dark is the default. System follows your device setting.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+
+                // Workout
+                Section("Workout") {
+                    Picker("Default rest", selection: $defaultRestSeconds) {
+                        ForEach(RestTimerNotifier.restChoices, id: \.self) {
+                            Text(RestTimerNotifier.label($0)).tag($0)
+                        }
+                    }
+                    Toggle("Rest timer alerts", isOn: $restAlertsEnabled)
+                    Text("Alerts notify you when rest ends while the phone is locked. Rest length can also be set per exercise in a routine or during a workout.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
@@ -315,7 +329,7 @@ private enum CsvExporter {
     /// platform has the same columns. The "Superset" column is always blank
     /// on iOS until supersets land here.
     private static let header =
-        "Date,Duration (min),Exercise,Muscle Group,Superset,Set,Warmup,Weight (kg),Reps,RPE,Notes"
+        "Date,Duration (min),Exercise,Muscle Group,Superset,Set,Warmup,Weight (kg),Reps,RPE,Notes,Set Type"
 
     static func generate(from workouts: [Workout]) -> String {
         let formatter = DateFormatter()
@@ -348,6 +362,7 @@ private enum CsvExporter {
                         String(set.reps),
                         set.rpe.map(String.init) ?? "",
                         notes,
+                        set.setType.rawValue.uppercased(),
                     ].joined(separator: ",")
                     rows.append(row)
                 }

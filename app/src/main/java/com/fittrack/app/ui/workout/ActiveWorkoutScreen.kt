@@ -2,7 +2,13 @@ package com.fittrack.app.ui.workout
 
 import android.media.AudioManager
 import android.media.ToneGenerator
+import android.Manifest
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.fittrack.app.data.WorkoutPrefs
+import com.fittrack.app.notifications.RestTimerNotifier
+import com.fittrack.app.ui.components.RestPickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -49,7 +55,6 @@ import com.fittrack.app.ui.components.fitTextFieldColors
 import kotlinx.coroutines.delay
 
 /** Default rest length auto-started when a working set is logged. */
-private const val DEFAULT_REST_SECONDS = 90L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,9 +110,38 @@ fun ActiveWorkoutScreen(
     // Rest timer + plate calc state. Timer state lives here (not in the sheet)
     // so it keeps counting and the top-bar chip stays visible after dismiss.
     var restTimerEndsAtMillis by rememberSaveable { mutableStateOf<Long?>(null) }
+    var restExerciseName by rememberSaveable { mutableStateOf<String?>(null) }
     var showRestTimerSheet by remember { mutableStateOf(false) }
+    // Per-exercise rest picker: index of the exercise being edited.
+    var restPickerFor by remember { mutableStateOf<Int?>(null) }
+
+    // Rest preferences and the background alert that mirrors the timer.
+    LaunchedEffect(Unit) { WorkoutPrefs.load(context) }
+    val defaultRest by WorkoutPrefs.defaultRestSeconds.collectAsState()
+    val restAlerts by WorkoutPrefs.restAlertsEnabled.collectAsState()
+    var notifPermissionTick by remember { mutableIntStateOf(0) }
+    val notifPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { notifPermissionTick++ }
+    fun ensureNotificationPermission() {
+        if (restAlerts && android.os.Build.VERSION.SDK_INT >= 33 && !RestTimerNotifier.hasPermission(context)) {
+            notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+    LaunchedEffect(restTimerEndsAtMillis, restAlerts, notifPermissionTick) {
+        val end = restTimerEndsAtMillis
+        if (end == null || !restAlerts || end <= System.currentTimeMillis()) {
+            RestTimerNotifier.cancel(context)
+        } else {
+            RestTimerNotifier.schedule(context, end, restExerciseName)
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose { RestTimerNotifier.cancel(context) }
+    }
     var showPlateCalcSheet by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
     // Accordion: one exercise expanded at a time, driven by the user's taps.
     // It never auto-advances on set completion — every exercise starts with
@@ -133,6 +167,15 @@ fun ActiveWorkoutScreen(
         val end = restTimerEndsAtMillis ?: return@LaunchedEffect
         val delayMs = end - System.currentTimeMillis()
         if (delayMs > 0) delay(delayMs)
+        // The alarm backstop only matters if the process died mid-rest; we
+        // are alive, so disarm it and alert from here at the exact second.
+        RestTimerNotifier.cancelAlarm(context)
+        val inForeground = lifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
+        if (!inForeground && restAlerts && RestTimerNotifier.hasPermission(context)) {
+            RestTimerNotifier.showRestOver(context, restExerciseName)
+            return@LaunchedEffect
+        }
+        RestTimerNotifier.cancel(context)
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
         runCatching {
             val tone = ToneGenerator(AudioManager.STREAM_MUSIC, 90)
@@ -424,12 +467,27 @@ fun ActiveWorkoutScreen(
                         },
                         onSetCompleted = {
                             // Any completed working set restarts the rest timer
-                            // to the full default. If the user is moving through
-                            // a superset / new exercise mid-rest, that's the
-                            // signal their previous rest is over.
-                            restTimerEndsAtMillis =
-                                System.currentTimeMillis() + DEFAULT_REST_SECONDS * 1000L
+                            // to this exercise's rest length (or the default).
+                            // If the user is moving through a superset / new
+                            // exercise mid-rest, that's the signal their
+                            // previous rest is over.
+                            val rest = exerciseState.restSeconds ?: defaultRest
+                            restExerciseName = exerciseState.exercise.name
+                            ensureNotificationPermission()
+                            restTimerEndsAtMillis = System.currentTimeMillis() + rest * 1000L
                         },
+                        restSeconds = exerciseState.restSeconds ?: defaultRest,
+                        restIsDefault = exerciseState.restSeconds == null,
+                        onRestClick = { restPickerFor = index },
+                        notes = exerciseState.exercise.notes,
+                        onNotesChange = { viewModel.updateExerciseNotes(index, it) },
+                        previousHints = exerciseState.previousSets.map { prev ->
+                            val shown = WeightUnits.fromKg(prev.weightKg, uiState.weightUnit)
+                            val w = if (shown == shown.toLong().toDouble()) shown.toLong().toString()
+                            else "%.1f".format(shown).trimEnd('0').trimEnd('.')
+                            "$w × ${prev.reps}"
+                        },
+                        onFillPrevious = { setIndex -> viewModel.fillPreviousSet(index, setIndex) },
                     )
                 }
                 item { Spacer(modifier = Modifier.height(96.dp)) }
@@ -635,6 +693,8 @@ fun ActiveWorkoutScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showDiscardDialog = false
+                    restTimerEndsAtMillis = null
+                    RestTimerNotifier.cancel(context)
                     viewModel.discardWorkout()
                     onBack()
                 }) {
@@ -646,6 +706,17 @@ fun ActiveWorkoutScreen(
                     Text("Keep Going")
                 }
             }
+        )
+    }
+
+    // Per-exercise rest picker
+    restPickerFor?.let { idx ->
+        val current = uiState.exercises.getOrNull(idx)?.restSeconds
+        RestPickerDialog(
+            current = current,
+            defaultSeconds = defaultRest,
+            onSelect = { viewModel.setRestSeconds(idx, it) },
+            onDismiss = { restPickerFor = null },
         )
     }
 
@@ -678,6 +749,8 @@ fun ActiveWorkoutScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showFinishDialog = false
+                    restTimerEndsAtMillis = null
+                    RestTimerNotifier.cancel(context)
                     viewModel.finishWorkout()
                 }) {
                     Text("Save")

@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.billing.ProManager
 import com.fittrack.app.data.ThemePrefs
+import com.fittrack.app.data.WorkoutPrefs
+import com.fittrack.app.notifications.RestTimerNotifier
 import com.fittrack.app.data.health.HealthConnectAvailability
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.ui.components.ListRow
@@ -57,6 +59,9 @@ fun SettingsScreen(
     val profile by viewModel.profile.collectAsState()
     val isPro by proManager.isPro.collectAsState()
     val themeMode by ThemePrefs.mode.collectAsState()
+    LaunchedEffect(Unit) { WorkoutPrefs.load(context) }
+    val defaultRest by WorkoutPrefs.defaultRestSeconds.collectAsState()
+    val restAlerts by WorkoutPrefs.restAlertsEnabled.collectAsState()
 
     val healthConnect = appModule.healthConnectService
     val hcEnabled by healthConnect.enabled.collectAsState()
@@ -249,6 +254,49 @@ fun SettingsScreen(
                             }
                         },
                     )
+                }
+            }
+
+            // Workout
+            item {
+                SettingsGroup(label = "Workout") {
+                    DropdownRow(
+                        title = "Default rest",
+                        value = WorkoutPrefs.formatRest(defaultRest) + " between sets",
+                        icon = Icons.Default.Timer,
+                        options = WorkoutPrefs.REST_CHOICES.map { WorkoutPrefs.formatRest(it) },
+                        onSelect = { label ->
+                            WorkoutPrefs.REST_CHOICES.firstOrNull { WorkoutPrefs.formatRest(it) == label }
+                                ?.let { WorkoutPrefs.setDefaultRest(context, it) }
+                        },
+                    )
+                    RowDivider()
+                    ListRow(
+                        title = "Rest timer alerts",
+                        subtitle = "Notify when rest ends, even if the screen is locked",
+                        icon = Icons.Default.NotificationsActive,
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        trailing = {
+                            Switch(
+                                checked = restAlerts,
+                                onCheckedChange = { WorkoutPrefs.setRestAlerts(context, it) },
+                            )
+                        },
+                    )
+                    // Android 12+ gates exact alarms behind a system toggle.
+                    // Without it the alert can arrive late if the app is
+                    // killed mid-rest; offer the system screen here.
+                    val exactIntent = remember { RestTimerNotifier.exactAlarmSettingsIntent(context) }
+                    if (restAlerts && exactIntent != null && !RestTimerNotifier.canScheduleExact(context)) {
+                        RowDivider()
+                        ListRow(
+                            title = "Allow precise alerts",
+                            subtitle = "Lets Android deliver the alert on the second if FitTrack is closed",
+                            icon = Icons.Default.Alarm,
+                            iconTint = MaterialTheme.colorScheme.tertiary,
+                            onClick = { runCatching { context.startActivity(exactIntent) } },
+                        )
+                    }
                 }
             }
 

@@ -32,5 +32,7 @@ data class RoutineExercise(
     val exerciseId: Long,
     val orderIndex: Int,
     val suggestedSets: Int,
-    val suggestedReps: String // e.g. "8-12"
+    val suggestedReps: String, // e.g. "8-12"
+    /** Rest after each set in seconds; null = the user's default. */
+    val restSeconds: Int? = null,
 )

@@ -51,4 +51,13 @@ interface RoutineDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertRoutineExercises(exercises: List<RoutineExercise>)
+
+    @Query("UPDATE routines SET folder = :folder WHERE id = :routineId")
+    suspend fun updateFolder(routineId: Long, folder: String?)
+
+    @Query("UPDATE routines SET folder = :newName WHERE folder = :oldName")
+    suspend fun renameFolder(oldName: String, newName: String)
+
+    @Query("UPDATE routine_exercises SET restSeconds = :restSeconds WHERE id = :routineExerciseId")
+    suspend fun updateRestSeconds(routineExerciseId: Long, restSeconds: Int?)
 }

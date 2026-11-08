@@ -21,4 +21,13 @@ class RoutineRepository(private val routineDao: RoutineDao) {
         routineDao.getRoutinesByProgram(programName)
 
     fun getAllProgramNames(): Flow<List<String>> = routineDao.getAllProgramNames()
+
+    suspend fun moveToFolder(routineId: Long, folder: String?) =
+        routineDao.updateFolder(routineId, folder?.trim()?.takeIf { it.isNotEmpty() })
+
+    suspend fun renameFolder(oldName: String, newName: String) =
+        routineDao.renameFolder(oldName, newName.trim())
+
+    suspend fun updateRestSeconds(routineExerciseId: Long, restSeconds: Int?) =
+        routineDao.updateRestSeconds(routineExerciseId, restSeconds)
 }

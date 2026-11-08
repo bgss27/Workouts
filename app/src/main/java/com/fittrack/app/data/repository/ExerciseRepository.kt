@@ -19,6 +19,9 @@ class ExerciseRepository(private val exerciseDao: ExerciseDao) {
 
     suspend fun update(exercise: Exercise) = exerciseDao.update(exercise)
 
+    suspend fun updateNotes(id: Long, notes: String?) =
+        exerciseDao.updateNotes(id, notes?.trim()?.takeIf { it.isNotEmpty() })
+
     fun getCustomCount(): Flow<Int> = exerciseDao.getCustomCount()
 
     /**

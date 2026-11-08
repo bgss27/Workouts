@@ -22,6 +22,8 @@ class WorkoutDraftStore(context: Context) {
         val isWarmup: Boolean,
         val rpe: Int?,
         val isCompleted: Boolean,
+        /** [com.fittrack.app.data.entity.SetType] name; WORKING when absent. */
+        val setType: String = if (isWarmup) "WARMUP" else "WORKING",
     )
 
     data class DraftExercise(
@@ -30,6 +32,8 @@ class WorkoutDraftStore(context: Context) {
         val supersetGroup: Long?,
         val sets: List<DraftSet>,
         val isFinished: Boolean = false,
+        /** Session-only rest override; null = default. */
+        val restSeconds: Int? = null,
     )
 
     data class Draft(
@@ -50,6 +54,7 @@ class WorkoutDraftStore(context: Context) {
                             .put("exerciseId", ex.exerciseId)
                             .put("supersetGroup", ex.supersetGroup ?: JSONObject.NULL)
                             .put("isFinished", ex.isFinished)
+                            .put("restSeconds", ex.restSeconds ?: JSONObject.NULL)
                             .put("sets", JSONArray().also { sets ->
                                 ex.sets.forEach { s ->
                                     sets.put(
@@ -59,6 +64,7 @@ class WorkoutDraftStore(context: Context) {
                                             .put("isWarmup", s.isWarmup)
                                             .put("rpe", s.rpe ?: JSONObject.NULL)
                                             .put("isCompleted", s.isCompleted)
+                                            .put("setType", s.setType)
                                     )
                                 }
                             })
@@ -80,6 +86,7 @@ class WorkoutDraftStore(context: Context) {
                         exerciseId = ex.getLong("exerciseId"),
                         supersetGroup = if (ex.isNull("supersetGroup")) null else ex.getLong("supersetGroup"),
                         isFinished = ex.optBoolean("isFinished", false),
+                        restSeconds = if (ex.isNull("restSeconds")) null else ex.getInt("restSeconds"),
                         sets = ex.getJSONArray("sets").let { sets ->
                             (0 until sets.length()).map { j ->
                                 val s = sets.getJSONObject(j)
@@ -89,6 +96,10 @@ class WorkoutDraftStore(context: Context) {
                                     isWarmup = s.optBoolean("isWarmup", false),
                                     rpe = if (s.isNull("rpe")) null else s.getInt("rpe"),
                                     isCompleted = s.optBoolean("isCompleted", false),
+                                    setType = s.optString(
+                                        "setType",
+                                        if (s.optBoolean("isWarmup", false)) "WARMUP" else "WORKING",
+                                    ),
                                 )
                             }
                         },

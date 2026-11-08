@@ -167,7 +167,7 @@ internal val SEED_EXERCISES: List<Exercise> = listOf(
         UserPlan::class,
         BodyMetric::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -338,7 +338,7 @@ abstract class FitTrackDatabase : RoomDatabase() {
 
         const val DB_NAME = "fittrack_database"
         /** Must match the @Database version above; checked by DatabaseBackup. */
-        const val DB_VERSION = 10
+        const val DB_VERSION = 11
 
         /** Application context for the one-time catalog import in onCreate. */
         @Volatile private var seedContext: Context? = null
@@ -416,6 +416,21 @@ abstract class FitTrackDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Tier-1 features: per-exercise rest, exercise notes, set types and
+         * routine folders. Additive columns only, so plain ALTERs suffice.
+         * `setType` mirrors the existing `isWarmup` flag for old rows.
+         */
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE routine_exercises ADD COLUMN restSeconds INTEGER")
+                db.execSQL("ALTER TABLE exercises ADD COLUMN notes TEXT")
+                db.execSQL("ALTER TABLE workout_sets ADD COLUMN setType TEXT NOT NULL DEFAULT 'WORKING'")
+                db.execSQL("UPDATE workout_sets SET setType = 'WARMUP' WHERE isWarmup = 1")
+                db.execSQL("ALTER TABLE routines ADD COLUMN folder TEXT")
+            }
+        }
+
         fun getInstance(context: Context): FitTrackDatabase {
             seedContext = context.applicationContext
             return INSTANCE ?: synchronized(this) {
@@ -428,7 +443,7 @@ abstract class FitTrackDatabase : RoomDatabase() {
                     FitTrackDatabase::class.java,
                     DB_NAME
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
                     // No destructive fallback: a schema bump without a registered
                     // migration must crash in development, never wipe a user's
                     // history in production.

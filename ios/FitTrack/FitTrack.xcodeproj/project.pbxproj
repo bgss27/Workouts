@@ -59,6 +59,10 @@
 		AA000001000000000000059 /* BodyMetricsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000159 /* BodyMetricsView.swift */; };
 		AA00000100000000000005A /* CustomExerciseSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000015A /* CustomExerciseSheet.swift */; };
 		AA00000100000000000005B /* StoreBackup.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000015B /* StoreBackup.swift */; };
+		AA00000100000000000005F /* RoutineFolderSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000015F /* RoutineFolderSheet.swift */; };
+		AA00000100000000000005E /* WorkoutControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000015E /* WorkoutControls.swift */; };
+		AA00000100000000000005D /* LastSessionLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000015D /* LastSessionLookup.swift */; };
+		AA00000100000000000005C /* RestTimerNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000015C /* RestTimerNotifier.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -117,6 +121,10 @@
 		AA000001000000000000159 /* BodyMetricsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyMetricsView.swift; sourceTree = "<group>"; };
 		AA00000100000000000015A /* CustomExerciseSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomExerciseSheet.swift; sourceTree = "<group>"; };
 		AA00000100000000000015B /* StoreBackup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreBackup.swift; sourceTree = "<group>"; };
+		AA00000100000000000015F /* RoutineFolderSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutineFolderSheet.swift; sourceTree = "<group>"; };
+		AA00000100000000000015E /* WorkoutControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutControls.swift; sourceTree = "<group>"; };
+		AA00000100000000000015D /* LastSessionLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastSessionLookup.swift; sourceTree = "<group>"; };
+		AA00000100000000000015C /* RestTimerNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTimerNotifier.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -185,6 +193,8 @@
 			isa = PBXGroup;
 			children = (
 				AA00000100000000000015B /* StoreBackup.swift */,
+				AA00000100000000000015D /* LastSessionLookup.swift */,
+				AA00000100000000000015C /* RestTimerNotifier.swift */,
 				AA000001000000000000156 /* StreakCalculator.swift */,
 				AA000001000000000000155 /* WorkoutDraftStore.swift */,
 				AA000001000000000000111 /* SeedData.swift */,
@@ -242,6 +252,7 @@
 			isa = PBXGroup;
 			children = (
 				AA000001000000000000157 /* WorkoutShareCard.swift */,
+				AA00000100000000000015E /* WorkoutControls.swift */,
 				AA000001000000000000117 /* ActiveWorkoutView.swift */,
 				AA000001000000000000149 /* PostWorkoutCelebration.swift */,
 				AA000001000000000000153 /* LogPastWorkoutView.swift */,
@@ -254,6 +265,7 @@
 			children = (
 				AA000001000000000000118 /* RoutineListView.swift */,
 				AA000001000000000000119 /* RoutineDetailView.swift */,
+				AA00000100000000000015F /* RoutineFolderSheet.swift */,
 			);
 			path = Routines;
 			sourceTree = "<group>";
@@ -390,6 +402,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA00000100000000000005B /* StoreBackup.swift in Sources */,
+				AA00000100000000000005F /* RoutineFolderSheet.swift in Sources */,
+				AA00000100000000000005E /* WorkoutControls.swift in Sources */,
+				AA00000100000000000005D /* LastSessionLookup.swift in Sources */,
+				AA00000100000000000005C /* RestTimerNotifier.swift in Sources */,
 				AA00000100000000000005A /* CustomExerciseSheet.swift in Sources */,
 				AA000001000000000000059 /* BodyMetricsView.swift in Sources */,
 				AA000001000000000000058 /* BodyMetric.swift in Sources */,

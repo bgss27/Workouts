@@ -13,5 +13,6 @@ data class Routine(
     val difficulty: String = "intermediate", // beginner, intermediate, advanced
     val daysPerWeek: Int = 0, // 0 = standalone day, 3/4/5/6 = part of a multi-day program
     val programName: String? = null, // Groups routines into a program (e.g. "PPL 3-Day")
-    val dayOrder: Int = 0 // Order within the program (Day 1, Day 2, etc.)
+    val dayOrder: Int = 0, // Order within the program (Day 1, Day 2, etc.)
+    val folder: String? = null, // User-defined grouping in the routine list
 )

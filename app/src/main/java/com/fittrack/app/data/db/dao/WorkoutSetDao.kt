@@ -55,11 +55,29 @@ interface WorkoutSetDao {
     @Query("""
         SELECT ws.* FROM workout_sets ws
         INNER JOIN workout_exercises we ON ws.workoutExerciseId = we.id
-        WHERE we.exerciseId = :exerciseId AND ws.isWarmup = 0
+        WHERE we.exerciseId = :exerciseId AND ws.isWarmup = 0 AND ws.setType != 'DROPSET'
         ORDER BY ws.weightKg DESC, ws.reps DESC
         LIMIT 1
     """)
     fun getPersonalBest(exerciseId: Long): Flow<WorkoutSet?>
+
+    /**
+     * Non-warm-up sets of the most recent *completed* workout that included
+     * [exerciseId], in logged order. Drives the "Prev 60 × 8" hints.
+     */
+    @Query("""
+        SELECT ws.* FROM workout_sets ws
+        INNER JOIN workout_exercises we ON ws.workoutExerciseId = we.id
+        WHERE we.exerciseId = :exerciseId AND ws.isWarmup = 0
+          AND we.workoutId = (
+            SELECT w.id FROM workouts w
+            INNER JOIN workout_exercises we2 ON we2.workoutId = w.id
+            WHERE we2.exerciseId = :exerciseId AND w.endTime IS NOT NULL
+            ORDER BY w.startTime DESC LIMIT 1
+          )
+        ORDER BY we.orderIndex ASC, ws.setNumber ASC, ws.id ASC
+    """)
+    suspend fun getLastSessionSets(exerciseId: Long): List<WorkoutSet>
 
     @Query("""
         SELECT ws.* FROM workout_sets ws

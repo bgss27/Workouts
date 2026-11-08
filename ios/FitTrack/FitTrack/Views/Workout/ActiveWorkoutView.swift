@@ -52,8 +52,12 @@ struct ActiveWorkoutView: View {
         /// User tapped Done on this exercise. Purely a progress marker so the
         /// list shows what's left; sets stay editable after Reopen.
         var isFinished: Bool = false
+        /// Rest after each set; nil = the global default from Settings.
+        var restSeconds: Int? = nil
+        /// Last session's working sets, for the "Prev 60 × 8" ghost hints.
+        var previousSets: [PreviousSet] = []
 
-        var workingSets: [SetEntry] { sets.filter { !$0.isWarmup } }
+        var workingSets: [SetEntry] { sets.filter { $0.setType.countsAsWorking } }
         var completedWorkingSets: Int { workingSets.filter(\.isCompleted).count }
     }
 
@@ -61,7 +65,8 @@ struct ActiveWorkoutView: View {
         let id = UUID()
         var weight: String = ""
         var reps: String = ""
-        var isWarmup: Bool = false
+        var setType: SetType = .working
+        var isWarmup: Bool { setType == .warmup }
         /// RPE 6-10. nil = unrated. Warmup sets are conventionally not rated.
         var rpe: Int? = nil
         /// Whether the user has marked this set as done. Auto-toggles on when
@@ -79,14 +84,24 @@ struct ActiveWorkoutView: View {
     @State private var showRestTimer = false
     @State private var showPlateCalc = false
 
-    /// Default rest length auto-started when a working set is logged.
-    private static let defaultRestSeconds: TimeInterval = 90
+    /// Global default rest from Settings; a per-exercise value wins.
+    @AppStorage(RestTimerNotifier.defaultRestKey) private var defaultRestSeconds = 90
+    /// Exercise the running rest timer belongs to, for the lock-screen alert.
+    @State private var restExerciseName: String?
+    /// When non-nil, the note sheet is open for this exercise entry.
+    @State private var noteTarget: NoteTarget?
+    private struct NoteTarget: Identifiable { let id: UUID }
 
-    /// Any completed working set restarts the rest timer to the full default.
-    /// If the user is moving through a superset / new exercise mid-rest, that's
-    /// the signal their previous rest is over (parity with Android).
-    private func autoStartRestTimer() {
-        restTimerEndsAt = Date().addingTimeInterval(Self.defaultRestSeconds)
+    private var effectiveDefaultRest: Int { defaultRestSeconds > 0 ? defaultRestSeconds : 90 }
+
+    /// Any completed working set restarts the rest timer to this exercise's
+    /// rest length (or the global default). If the user is moving through a
+    /// superset / new exercise mid-rest, that's the signal their previous
+    /// rest is over (parity with Android).
+    private func autoStartRestTimer(for entry: ExerciseEntry) {
+        restExerciseName = entry.exercise.name
+        let seconds = entry.restSeconds ?? effectiveDefaultRest
+        restTimerEndsAt = Date().addingTimeInterval(TimeInterval(seconds))
     }
     @State private var formExpanded: Set<UUID> = []
     /// When non-nil, the swap sheet is open for this exercise entry.
@@ -186,6 +201,9 @@ struct ActiveWorkoutView: View {
                         // stays visible so the user can tap to expand a collapsed
                         // exercise or use the action buttons.
                         if expandedExerciseID == entry.id {
+                            // Rest length and the carry-over note for this exercise.
+                            exerciseControls($entry)
+
                             // How-to text — pulled from the bundled
                             // free-exercise-db dataset first, then hand-written
                             // fallbacks for entries the open DB doesn't cover.
@@ -217,69 +235,13 @@ struct ActiveWorkoutView: View {
                             }
 
                             ForEach($entry.sets) { $set in
-                                // Auto-toggle "completed" the first time the
-                                // user fills in valid weight + reps for a
-                                // non-warmup set. Doesn't auto-toggle BACK off
-                                // when the user edits — they untick manually
-                                // via the completion button.
-                                let canAutoComplete = !set.isWarmup
-                                    && (Int(set.reps) ?? 0) > 0
-                                    && (Double(set.weight) ?? 0) > 0
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack {
-                                        SetCompleteButton(
-                                            isCompleted: set.isCompleted,
-                                            isWarmup: set.isWarmup,
-                                            canBeComplete: canAutoComplete
-                                        ) {
-                                            set.isCompleted.toggle()
-                                        }
-                                        Text(set.isWarmup ? "W" : "\(entry.sets.firstIndex(where: { $0.id == set.id }).map { $0 + 1 } ?? 0)")
-                                            .font(.subheadline.weight(.semibold))
-                                            .monospacedDigit()
-                                            .frame(width: 20)
-                                            .foregroundColor(set.isWarmup ? .fitSecondary : .primary)
-                                        SetField(placeholder: weightUnit, text: $set.weight, keyboard: .decimalPad)
-                                        SetField(placeholder: "Reps", text: $set.reps, keyboard: .numberPad)
-                                        Button {
-                                            let nowWarmup = !set.isWarmup
-                                            set.isWarmup = nowWarmup
-                                            // Switching to warmup clears any
-                                            // RPE rating AND the completed flag
-                                            // — warmups don't count.
-                                            if nowWarmup {
-                                                set.rpe = nil
-                                                set.isCompleted = false
-                                            }
-                                        } label: {
-                                            Text("W")
-                                                .font(.caption.weight(.bold))
-                                                .foregroundColor(set.isWarmup ? .fitSecondary : .gray.opacity(0.4))
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                    if !set.isWarmup {
-                                        RpeRow(rpe: $set.rpe)
-                                    }
-                                }
-                                .padding(.vertical, 4)
-                                .padding(.horizontal, 6)
-                                .background(set.isCompleted ? Color.fitTrackSuccess.opacity(0.15) : Color.clear)
-                                .cornerRadius(8)
-                                .animation(.easeInOut(duration: 0.22), value: set.isCompleted)
-                                .onChange(of: canAutoComplete) { _, can in
-                                    // Auto-tick on, but never auto-tick off —
-                                    // the user might be editing a completed set.
-                                    if can && !set.isCompleted {
-                                        set.isCompleted = true
-                                    }
-                                }
-                                .onChange(of: set.isCompleted) { wasComplete, nowComplete in
-                                    if nowComplete && !wasComplete {
-                                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                        autoStartRestTimer()
-                                    }
-                                }
+                                SetRowView(
+                                    set: $set,
+                                    index: entry.sets.firstIndex(where: { $0.id == set.id }) ?? 0,
+                                    previousSets: entry.previousSets,
+                                    weightUnit: weightUnit,
+                                    onCompleted: { autoStartRestTimer(for: entry) }
+                                )
                             }
                             .onDelete { indices in entry.sets.remove(atOffsets: indices) }
 
@@ -466,6 +428,23 @@ struct ActiveWorkoutView: View {
                     )
                 }
             }
+            .sheet(item: $noteTarget) { target in
+                if let entry = exerciseEntries.first(where: { $0.id == target.id }) {
+                    ExerciseNoteSheet(exerciseName: entry.exercise.name, text: entry.exercise.notes ?? "") { note in
+                        entry.exercise.notes = note
+                        try? modelContext.save()
+                    }
+                }
+            }
+            // Mirror the in-app timer to a local notification so the alert
+            // reaches a locked phone; nil cancels it.
+            .onChange(of: restTimerEndsAt) { _, endsAt in
+                if let endsAt {
+                    RestTimerNotifier.shared.schedule(endsAt: endsAt, exerciseName: restExerciseName)
+                } else {
+                    RestTimerNotifier.shared.cancel()
+                }
+            }
             .alert("Finish Workout?", isPresented: $showFinishAlert) {
                 Button("Save") { finishWorkout() }
                 Button("Cancel", role: .cancel) {}
@@ -503,7 +482,11 @@ struct ActiveWorkoutView: View {
                 }
                 ForEach(filtered, id: \.self) { exercise in
                     Button {
-                        let newEntry = ExerciseEntry(exercise: exercise, sets: [SetEntry()])
+                        let newEntry = ExerciseEntry(
+                            exercise: exercise,
+                            sets: [SetEntry()],
+                            previousSets: LastSessionLookup.previousSets(for: exercise, in: modelContext)
+                        )
                         exerciseEntries.append(newEntry)
                         // Auto-open the just-added exercise so the user can
                         // start logging immediately.
@@ -533,6 +516,35 @@ struct ActiveWorkoutView: View {
         }
     }
 
+    // MARK: - Exercise controls
+
+    /// Rest-length chip and the carry-over note for one exercise, shown at the
+    /// top of its expanded card. Kept out of `body` so the type-checker
+    /// doesn't have to swallow the whole List in one expression.
+    private func exerciseControls(_ entry: Binding<ExerciseEntry>) -> some View {
+        let notes = entry.wrappedValue.exercise.notes
+        return HStack(spacing: 10) {
+            RestDurationPicker(seconds: entry.restSeconds, defaultSeconds: effectiveDefaultRest)
+            Button { noteTarget = NoteTarget(id: entry.wrappedValue.id) } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "note.text").font(.caption2.weight(.semibold))
+                    Text(notes ?? "Add note")
+                        .font(.caption.weight(notes == nil ? .regular : .semibold))
+                        .lineLimit(1)
+                }
+                .foregroundStyle(notes == nil ? Color.fitOnSurfaceVariant : Color.primary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color.fitSurfaceHigh)
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Exercise note")
+            Spacer(minLength: 0)
+        }
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 4, trailing: 16))
+    }
+
     // MARK: - Lifecycle
 
     private func startWorkout() {
@@ -551,10 +563,12 @@ struct ActiveWorkoutView: View {
                 restored.append(ExerciseEntry(
                     exercise: exercise,
                     sets: de.sets.map {
-                        SetEntry(weight: $0.weight, reps: $0.reps, isWarmup: $0.isWarmup, rpe: $0.rpe, isCompleted: $0.isCompleted)
+                        SetEntry(weight: $0.weight, reps: $0.reps, setType: $0.resolvedType, rpe: $0.rpe, isCompleted: $0.isCompleted)
                     },
                     supersetGroup: de.supersetGroup,
-                    isFinished: de.isFinished
+                    isFinished: de.isFinished,
+                    restSeconds: de.restSeconds,
+                    previousSets: LastSessionLookup.previousSets(for: exercise, in: modelContext)
                 ))
             }
             exerciseEntries = restored
@@ -582,12 +596,21 @@ struct ActiveWorkoutView: View {
                 // Pre-fill the routine's prescribed number of sets so the user
                 // isn't tapping Add set between every one.
                 let rows = max(1, min(re.suggestedSets, 8))
-                exerciseEntries.append(ExerciseEntry(exercise: ex, sets: (0..<rows).map { _ in SetEntry() }))
+                exerciseEntries.append(ExerciseEntry(
+                    exercise: ex,
+                    sets: (0..<rows).map { _ in SetEntry() },
+                    restSeconds: re.restSeconds,
+                    previousSets: LastSessionLookup.previousSets(for: ex, in: modelContext)
+                ))
             }
         } else if !initialExercises.isEmpty {
             // Ad-hoc workout pre-loaded by the Home Workout generator.
             for ex in initialExercises {
-                exerciseEntries.append(ExerciseEntry(exercise: ex, sets: [SetEntry()]))
+                exerciseEntries.append(ExerciseEntry(
+                    exercise: ex,
+                    sets: [SetEntry()],
+                    previousSets: LastSessionLookup.previousSets(for: ex, in: modelContext)
+                ))
             }
         }
         // Open the first exercise's accordion by default.
@@ -608,8 +631,12 @@ struct ActiveWorkoutView: View {
                     supersetGroup: e.supersetGroup,
                     isFinished: e.isFinished,
                     sets: e.sets.map {
-                        WorkoutDraft.Set(weight: $0.weight, reps: $0.reps, isWarmup: $0.isWarmup, rpe: $0.rpe, isCompleted: $0.isCompleted)
-                    }
+                        WorkoutDraft.Set(
+                            weight: $0.weight, reps: $0.reps, isWarmup: $0.isWarmup,
+                            rpe: $0.rpe, isCompleted: $0.isCompleted, setType: $0.setType.rawValue
+                        )
+                    },
+                    restSeconds: e.restSeconds
                 )
             }
         )
@@ -658,7 +685,7 @@ struct ActiveWorkoutView: View {
                     setNumber: set.isWarmup ? 0 : setNum,
                     reps: reps,
                     weightKg: weightKg,
-                    isWarmup: set.isWarmup,
+                    setType: set.setType,
                     rpe: set.isWarmup ? nil : set.rpe
                 )
                 ws.workoutExercise = we
@@ -669,6 +696,7 @@ struct ActiveWorkoutView: View {
         }
 
         // Nothing logged: don't leave an empty workout in the history.
+        RestTimerNotifier.shared.cancel()
         if savedSets == 0 {
             modelContext.delete(workout)
             try? modelContext.save()
@@ -721,7 +749,9 @@ struct ActiveWorkoutView: View {
         exerciseEntries[index] = ExerciseEntry(
             exercise: newExercise,
             sets: [SetEntry()],
-            supersetGroup: supersetGroup
+            supersetGroup: supersetGroup,
+            restSeconds: exerciseEntries[index].restSeconds,
+            previousSets: LastSessionLookup.previousSets(for: newExercise, in: modelContext)
         )
         formExpanded.removeAll() // collapse any open form gallery for the old exercise
     }
@@ -758,10 +788,94 @@ struct ActiveWorkoutView: View {
     }
 
     private func discardWorkout() {
+        RestTimerNotifier.shared.cancel()
         if let workout { modelContext.delete(workout) }
         try? modelContext.save()
         WorkoutDraftStore.clear()
         dismiss()
+    }
+}
+
+// MARK: - Set row
+
+/// One set line: completion button, type badge, weight/reps fields, last
+/// session's ghost values and the RPE row. Owns the auto-complete and
+/// warm-up bookkeeping so `ActiveWorkoutView.body` stays type-checkable.
+private struct SetRowView: View {
+    @Binding var set: ActiveWorkoutView.SetEntry
+    let index: Int
+    let previousSets: [PreviousSet]
+    let weightUnit: String
+    /// Fired when the set flips to completed; the parent starts the rest timer.
+    let onCompleted: () -> Void
+
+    /// Auto-toggle "completed" the first time the user fills in valid weight
+    /// + reps for a non-warmup set. Never auto-toggles back off — the user
+    /// unticks manually via the completion button.
+    private var canAutoComplete: Bool {
+        !set.isWarmup && (Int(set.reps) ?? 0) > 0 && (Double(set.weight) ?? 0) > 0
+    }
+
+    private var previous: PreviousSet? {
+        index < previousSets.count ? previousSets[index] : nil
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                SetCompleteButton(
+                    isCompleted: set.isCompleted,
+                    isWarmup: set.isWarmup,
+                    canBeComplete: canAutoComplete
+                ) {
+                    set.isCompleted.toggle()
+                }
+                SetTypeBadge(number: index + 1, setType: $set.setType)
+                SetField(placeholder: weightUnit, text: $set.weight, keyboard: .decimalPad)
+                SetField(placeholder: "Reps", text: $set.reps, keyboard: .numberPad)
+            }
+            // Ghost of last session's matching set, until the user types.
+            if let prev = previous, set.weight.isEmpty, set.reps.isEmpty {
+                let hint = LastSessionLookup.hint(prev, unit: weightUnit)
+                Button {
+                    set.weight = LastSessionLookup.weightText(prev.weightKg, unit: weightUnit)
+                    set.reps = String(prev.reps)
+                } label: {
+                    Text(hint)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Color.fitOnSurfaceVariant)
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 32)
+                .accessibilityLabel("Use last session's \(hint)")
+            }
+            if !set.isWarmup {
+                RpeRow(rpe: $set.rpe)
+            }
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 6)
+        .background(set.isCompleted ? Color.fitTrackSuccess.opacity(0.15) : Color.clear)
+        .cornerRadius(8)
+        .animation(.easeInOut(duration: 0.22), value: set.isCompleted)
+        .onChange(of: set.setType) { _, type in
+            // Warm-ups carry no RPE or completion.
+            if type == .warmup {
+                set.rpe = nil
+                set.isCompleted = false
+            }
+        }
+        .onChange(of: canAutoComplete) { _, can in
+            if can && !set.isCompleted {
+                set.isCompleted = true
+            }
+        }
+        .onChange(of: set.isCompleted) { wasComplete, nowComplete in
+            if nowComplete && !wasComplete {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                onCompleted()
+            }
+        }
     }
 }
 

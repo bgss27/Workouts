@@ -28,6 +28,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.fittrack.app.data.entity.SetType
 
 private val RPE_VALUES = listOf(6, 7, 8, 9, 10)
 
@@ -37,12 +38,12 @@ fun SetInputRow(
     setNumber: Int,
     reps: String,
     weight: String,
-    isWarmup: Boolean,
+    setType: SetType,
     rpe: Int?,
     isCompleted: Boolean,
     onRepsChange: (String) -> Unit,
     onWeightChange: (String) -> Unit,
-    onWarmupToggle: (Boolean) -> Unit,
+    onSetTypeChange: (SetType) -> Unit,
     onRpeChange: (Int?) -> Unit,
     onCompletedToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
@@ -50,8 +51,12 @@ fun SetInputRow(
     weightUnit: String = "kg",
     /** Fires once when a set transitions from incomplete → complete. */
     onSetCompleted: () -> Unit = {},
+    /** "60 × 8" from the last session for this set index; shown while the row is empty. */
+    previousHint: String? = null,
+    onFillPrevious: (() -> Unit)? = null,
 ) {
     val haptic = LocalHapticFeedback.current
+    val isWarmup = setType == SetType.WARMUP
 
     // Auto-mark complete the first time a non-warmup set has both fields
     // populated with valid positive numbers. Auto-mark incomplete if the
@@ -101,10 +106,15 @@ fun SetInputRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            SetNumberCircle(
+            SetTypeBadge(
                 setNumber = setNumber,
-                isWarmup = isWarmup,
+                setType = setType,
                 isCompleted = isCompleted,
+                onSelect = { type ->
+                    // Switching to warm-up clears RPE and the completed flag
+                    // (warm-ups don't count as completed working sets).
+                    onSetTypeChange(type)
+                },
                 modifier = Modifier.width(28.dp),
             )
 
@@ -124,10 +134,6 @@ fun SetInputRow(
                 modifier = Modifier.weight(1f),
             )
 
-            // Compact warmup toggle pill. Tapping flips the warmup state; the
-            // completion logic above re-evaluates automatically.
-            WarmupPill(checked = isWarmup, onClick = { onWarmupToggle(!isWarmup) })
-
             // Completion toggle: outlined when incomplete, primary fill when
             // complete. Disabled for warmups (they can't be "completed").
             CompletionCircle(
@@ -144,6 +150,20 @@ fun SetInputRow(
                     modifier = Modifier.size(16.dp),
                 )
             }
+        }
+
+        // Last session's numbers, until the user types something.
+        if (previousHint != null && weight.isEmpty() && reps.isEmpty()) {
+            Text(
+                text = "Prev $previousHint",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .padding(start = 36.dp, top = 2.dp)
+                    .clip(CircleShape)
+                    .then(if (onFillPrevious != null) Modifier.clickable(onClick = onFillPrevious) else Modifier)
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            )
         }
 
         // RPE row — hidden for warmup sets (rating warmups isn't conventional)
@@ -177,44 +197,68 @@ fun SetInputRow(
 }
 
 /**
- * Leading set indicator: a 28dp circle with the set number. Container-high
- * normally; primary fill when the set is completed; tertiary tint with a "W"
- * for warmups.
+ * Leading set indicator and set-type picker: a 28dp circle showing the set
+ * number (or W / D / F for warm-up, drop set, failure). Tapping opens a menu
+ * to change the type.
  */
 @Composable
-private fun SetNumberCircle(
+private fun SetTypeBadge(
     setNumber: Int,
-    isWarmup: Boolean,
+    setType: SetType,
     isCompleted: Boolean,
+    onSelect: (SetType) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var open by remember { mutableStateOf(false) }
+    val scheme = MaterialTheme.colorScheme
+    val (bgTarget, fg) = when (setType) {
+        SetType.WARMUP -> scheme.surfaceContainerHigh to scheme.onSurfaceVariant
+        SetType.DROPSET -> scheme.tertiary.copy(alpha = 0.18f) to scheme.tertiary
+        SetType.FAILURE -> scheme.primary.copy(alpha = 0.18f) to scheme.primary
+        SetType.WORKING ->
+            if (isCompleted) scheme.primary to scheme.onPrimary
+            else scheme.surfaceContainerHigh to scheme.onSurface
+    }
     val bg by animateColorAsState(
-        targetValue = when {
-            isWarmup -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.16f)
-            isCompleted -> MaterialTheme.colorScheme.primary
-            else -> MaterialTheme.colorScheme.surfaceContainerHigh
-        },
+        targetValue = bgTarget,
         animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
         label = "setNumberBg",
     )
-    val fg = when {
-        isWarmup -> MaterialTheme.colorScheme.tertiary
-        isCompleted -> MaterialTheme.colorScheme.onPrimary
-        else -> MaterialTheme.colorScheme.onSurface
-    }
-    Box(
-        modifier = modifier
-            .size(28.dp)
-            .clip(CircleShape)
-            .background(bg),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = if (isWarmup) "W" else "$setNumber",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = fg,
-        )
+    Box(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(bg)
+                .clickable { open = true },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = setType.badge ?: "$setNumber",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = fg,
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            SetType.entries.forEach { type ->
+                DropdownMenuItem(
+                    text = { Text(type.displayName) },
+                    leadingIcon = {
+                        Text(
+                            text = type.badge ?: "#",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (type == setType) scheme.primary else scheme.onSurfaceVariant,
+                        )
+                    },
+                    onClick = {
+                        open = false
+                        if (type != setType) onSelect(type)
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -299,30 +343,6 @@ private fun CompactNumberField(
             shape = MaterialTheme.shapes.small,
             colors = colors,
             contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-        )
-    }
-}
-
-/** Small "W" pill toggling warmup state. Tertiary tint when checked. */
-@Composable
-private fun WarmupPill(checked: Boolean, onClick: () -> Unit) {
-    val bg = if (checked) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.16f)
-    else MaterialTheme.colorScheme.surfaceContainerHigh
-    val fg = if (checked) MaterialTheme.colorScheme.tertiary
-    else MaterialTheme.colorScheme.onSurfaceVariant
-    Box(
-        modifier = Modifier
-            .size(width = 32.dp, height = 28.dp)
-            .clip(CircleShape)
-            .background(bg)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "W",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = fg,
         )
     }
 }

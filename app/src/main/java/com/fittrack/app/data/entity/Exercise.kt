@@ -16,4 +16,6 @@ data class Exercise(
      * the bodyweight bucket and dilute the "train at home" generator.
      */
     val equipment: Equipment = Equipment.BARBELL,
+    /** Personal setup cue ("seat 4, grip at rings"); shown every session. */
+    val notes: String? = null,
 )

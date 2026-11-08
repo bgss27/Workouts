@@ -6,6 +6,11 @@ struct RoutineListView: View {
     @Query(sort: \Routine.name) private var routines: [Routine]
     @State private var selectedDays: Int? = nil
     @State private var toastMessage: String?
+    /// Routine being moved via the folder sheet.
+    @State private var folderTarget: Routine?
+    @State private var renamingFolder: String?
+    @State private var renameText = ""
+    @State private var collapsedFolders: Set<String> = []
 
     var filteredRoutines: [Routine] {
         routines.filter { r in
@@ -22,6 +27,18 @@ struct RoutineListView: View {
     var standaloneRoutines: [Routine] {
         filteredRoutines.filter { $0.programName == nil }
     }
+
+    /// Standalone routines with no folder, listed first.
+    var unfiledRoutines: [Routine] { standaloneRoutines.filter { $0.folder == nil } }
+
+    /// Standalone routines grouped by folder, alphabetical.
+    var folders: [(String, [Routine])] {
+        Dictionary(grouping: standaloneRoutines.filter { $0.folder != nil }) { $0.folder! }
+            .sorted { $0.key < $1.key }
+    }
+
+    /// Every folder name in use, for the move sheet.
+    var allFolderNames: [String] { Array(Set(routines.compactMap(\.folder))).sorted() }
 
     var body: some View {
         NavigationStack {
@@ -83,32 +100,26 @@ struct RoutineListView: View {
                         .padding(.horizontal)
                     }
 
-                    // Standalone
+                    // Standalone: unfiled first, then one collapsible group per folder.
                     if !standaloneRoutines.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Single Day Routines").font(.headline).padding(.horizontal)
 
-                            ForEach(standaloneRoutines, id: \.self) { routine in
-                                NavigationLink(destination: RoutineDetailView(routine: routine)) {
-                                    HStack {
-                                        VStack(alignment: .leading) {
-                                            Text(routine.name).font(.subheadline.bold())
-                                            Text(routine.routineDescription).font(.caption).opacity(0.6)
-                                            Text("\(routine.exercises.count) exercises").font(.caption2).foregroundColor(.accentColor)
-                                        }
-                                        Spacer()
-                                        Button {
-                                            addStandaloneRoutineToPlan(routine)
-                                        } label: {
-                                            Image(systemName: "plus").foregroundColor(.accentColor)
-                                        }
+                            ForEach(unfiledRoutines, id: \.self) { routine in
+                                standaloneRow(routine)
+                                    .padding(.horizontal)
+                            }
+
+                            ForEach(folders, id: \.0) { name, items in
+                                folderHeader(name, count: items.count)
+                                    .padding(.horizontal)
+                                if !collapsedFolders.contains(name) {
+                                    ForEach(items, id: \.self) { routine in
+                                        standaloneRow(routine)
+                                            .padding(.leading, 32)
+                                            .padding(.trailing)
                                     }
-                                    .padding()
-                                    .background(Color.fitSurfaceLow)
-                                    .cornerRadius(12)
                                 }
-                                .buttonStyle(.plain)
-                                .padding(.horizontal)
                             }
                         }
                     }
@@ -118,6 +129,18 @@ struct RoutineListView: View {
             .scrollContentBackground(.hidden)
             .background(Color.fitBackground)
             .navigationTitle("Routines")
+            .sheet(item: $folderTarget) { routine in
+                RoutineFolderSheet(routine: routine, existingFolders: allFolderNames)
+                    .presentationDetents([.medium, .large])
+            }
+            .alert("Rename folder", isPresented: Binding(
+                get: { renamingFolder != nil },
+                set: { if !$0 { renamingFolder = nil } }
+            )) {
+                TextField("Folder name", text: $renameText)
+                Button("Rename") { renameFolder() }
+                Button("Cancel", role: .cancel) { renamingFolder = nil }
+            }
             .overlay(alignment: .bottom) {
                 if let msg = toastMessage {
                     Text(msg).font(.caption.bold()).padding(12)
@@ -129,6 +152,87 @@ struct RoutineListView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Rows
+
+    private func standaloneRow(_ routine: Routine) -> some View {
+        NavigationLink(destination: RoutineDetailView(routine: routine)) {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text(routine.name).font(.subheadline.bold())
+                    Text(routine.routineDescription).font(.caption).opacity(0.6)
+                    Text("\(routine.exercises.count) exercises").font(.caption2).foregroundColor(.accentColor)
+                }
+                Spacer()
+                Button {
+                    addStandaloneRoutineToPlan(routine)
+                } label: {
+                    Image(systemName: "plus").foregroundColor(.accentColor)
+                }
+            }
+            .padding()
+            .background(Color.fitSurfaceLow)
+            .cornerRadius(12)
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button { folderTarget = routine } label: {
+                Label("Move to folder…", systemImage: "folder")
+            }
+            if routine.folder != nil {
+                Button {
+                    routine.folder = nil
+                    try? modelContext.save()
+                } label: {
+                    Label("Remove from folder", systemImage: "folder.badge.minus")
+                }
+            }
+        }
+    }
+
+    private func folderHeader(_ name: String, count: Int) -> some View {
+        HStack(spacing: 8) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    if collapsedFolders.contains(name) { collapsedFolders.remove(name) } else { collapsedFolders.insert(name) }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: collapsedFolders.contains(name) ? "chevron.right" : "chevron.down")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Color.fitOnSurfaceVariant)
+                    Image(systemName: "folder.fill").foregroundStyle(Color.fitPrimary)
+                    Text(name).font(.subheadline.weight(.semibold))
+                    Text("\(count)").font(.caption).foregroundStyle(Color.fitOnSurfaceVariant)
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            Menu {
+                Button {
+                    renameText = name
+                    renamingFolder = name
+                } label: { Label("Rename folder", systemImage: "pencil") }
+            } label: {
+                Image(systemName: "ellipsis.circle").foregroundStyle(Color.fitOnSurfaceVariant)
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    // MARK: - Actions
+
+    private func renameFolder() {
+        guard let old = renamingFolder else { return }
+        let new = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        renamingFolder = nil
+        guard !new.isEmpty, new != old else { return }
+        for routine in routines where routine.folder == old {
+            routine.folder = new
+        }
+        try? modelContext.save()
     }
 
     private func addProgramToPlan(_ name: String, _ routines: [Routine]) {

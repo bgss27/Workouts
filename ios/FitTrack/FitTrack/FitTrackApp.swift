@@ -9,6 +9,7 @@ struct FitTrackApp: App {
 
     init() {
         FitAppearance.apply()
+        RestTimerNotifier.shared.install()
     }
 
     var sharedModelContainer: ModelContainer = {
@@ -26,6 +27,9 @@ struct FitTrackApp: App {
         StoreBackup.backupIfSchemaChanged(modelNames: [
             "Exercise", "Workout", "WorkoutExercise", "WorkoutSet",
             "Routine", "RoutineExercise", "UserPlan", "BodyMetric",
+            // Bumped whenever attributes are added so the backup fires even
+            // though the model list is unchanged.
+            "schema:v2",
         ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {

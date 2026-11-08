@@ -7,6 +7,8 @@ final class RoutineExercise {
     var orderIndex: Int
     var suggestedSets: Int
     var suggestedReps: String
+    /// Rest after each set, in seconds. nil = the global default from Settings.
+    var restSeconds: Int?
     var routine: Routine?
 
     init(exercise: Exercise, orderIndex: Int, suggestedSets: Int, suggestedReps: String) {

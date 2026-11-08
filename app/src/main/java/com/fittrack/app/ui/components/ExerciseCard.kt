@@ -30,12 +30,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.material.icons.filled.Notes
+import androidx.compose.material.icons.filled.Timer
+import com.fittrack.app.data.WorkoutPrefs
+import com.fittrack.app.data.entity.SetType
 
 data class SetData(
     val id: Long = 0,
     val reps: String = "",
     val weight: String = "",
-    val isWarmup: Boolean = false,
+    val setType: SetType = SetType.WORKING,
     /** RPE 6-10. Null = unrated. Warmup sets are conventionally not rated. */
     val rpe: Int? = null,
     /**
@@ -44,7 +50,9 @@ data class SetData(
      * tap the leading button to manually toggle it back off and edit.
      */
     val isCompleted: Boolean = false,
-)
+) {
+    val isWarmup: Boolean get() = setType == SetType.WARMUP
+}
 
 @Composable
 fun ExerciseCard(
@@ -71,6 +79,16 @@ fun ExerciseCard(
     // expanded state (default open).
     expanded: Boolean? = null,
     onExpandToggle: (() -> Unit)? = null,
+    /** Effective rest for this exercise and whether it is the user's default. */
+    restSeconds: Int? = null,
+    restIsDefault: Boolean = true,
+    onRestClick: (() -> Unit)? = null,
+    /** Persistent per-exercise cue, e.g. "seat 4, grip at rings". */
+    notes: String? = null,
+    onNotesChange: ((String) -> Unit)? = null,
+    /** "60 × 8" hints from the last session, by set index. */
+    previousHints: List<String> = emptyList(),
+    onFillPrevious: ((Int) -> Unit)? = null,
 ) {
     var localExpanded by remember { mutableStateOf(true) }
     val isExpanded = expanded ?: localExpanded
@@ -165,6 +183,26 @@ fun ExerciseCard(
         AnimatedVisibility(visible = isExpanded) {
             Column {
                 Column(modifier = Modifier.padding(horizontal = 14.dp)) {
+                    // Rest length chip + persistent notes line.
+                    if (onRestClick != null && restSeconds != null) {
+                        AssistChip(
+                            onClick = onRestClick,
+                            leadingIcon = {
+                                Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
+                            },
+                            label = {
+                                Text(
+                                    "Rest ${WorkoutPrefs.formatRest(restSeconds)}" + if (restIsDefault) "" else " ·",
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            },
+                            modifier = Modifier.padding(bottom = 4.dp),
+                        )
+                    }
+                    if (onNotesChange != null) {
+                        ExerciseNotesLine(notes = notes, onSave = onNotesChange)
+                    }
+
                     // How-to text — shown for any exercise we have written
                     // instructions for. Especially useful for bodyweight
                     // exercises pulled in by the "home workout" generator,
@@ -212,9 +250,9 @@ fun ExerciseCard(
                         SetHeaderLabel("SET", modifier = Modifier.width(28.dp))
                         SetHeaderLabel(weightUnit.uppercase(), modifier = Modifier.weight(1f))
                         SetHeaderLabel("REPS", modifier = Modifier.weight(1f))
-                        // Matches the row's trailing cluster: W pill (32) +
-                        // check (28) + delete (28) with 8dp gaps.
-                        Spacer(modifier = Modifier.width(104.dp))
+                        // Matches the row's trailing cluster: check (28) +
+                        // delete (28) with an 8dp gap.
+                        Spacer(modifier = Modifier.width(64.dp))
                     }
 
                     var workingSetNumber = 0
@@ -224,25 +262,28 @@ fun ExerciseCard(
                             setNumber = workingSetNumber,
                             reps = set.reps,
                             weight = set.weight,
-                            isWarmup = set.isWarmup,
+                            setType = set.setType,
                             rpe = set.rpe,
                             isCompleted = set.isCompleted,
                             weightUnit = weightUnit,
                             onRepsChange = { onUpdateSet(index, set.copy(reps = it)) },
                             onWeightChange = { onUpdateSet(index, set.copy(weight = it)) },
-                            onWarmupToggle = {
+                            onSetTypeChange = { type ->
                                 // Switching to warmup clears any RPE rating
                                 // AND clears the completed flag (warmups don't
                                 // count as completed working sets).
+                                val warm = type == SetType.WARMUP
                                 onUpdateSet(
                                     index,
                                     set.copy(
-                                        isWarmup = it,
-                                        rpe = if (it) null else set.rpe,
-                                        isCompleted = if (it) false else set.isCompleted,
+                                        setType = type,
+                                        rpe = if (warm) null else set.rpe,
+                                        isCompleted = if (warm) false else set.isCompleted,
                                     )
                                 )
                             },
+                            previousHint = previousHints.getOrNull(index),
+                            onFillPrevious = onFillPrevious?.let { fill -> { fill(index) } },
                             onRpeChange = { onUpdateSet(index, set.copy(rpe = it)) },
                             onCompletedToggle = { onUpdateSet(index, set.copy(isCompleted = it)) },
                             onDelete = { onDeleteSet(index) },
@@ -315,6 +356,55 @@ fun ExerciseCard(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * One-line exercise note with inline editing. Saved notes persist on the
+ * exercise itself, so they show up again next session.
+ */
+@Composable
+private fun ExerciseNotesLine(notes: String?, onSave: (String) -> Unit) {
+    var editing by remember { mutableStateOf(false) }
+    var draft by remember(notes, editing) { mutableStateOf(notes ?: "") }
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val focus = remember { FocusRequester() }
+    if (editing) {
+        LaunchedEffect(Unit) { focus.requestFocus() }
+        Column(modifier = Modifier.padding(bottom = 6.dp)) {
+            TextField(
+                value = draft,
+                onValueChange = { draft = it },
+                placeholder = { Text("Setup cue, e.g. seat 4, grip at rings") },
+                singleLine = false,
+                maxLines = 3,
+                shape = MaterialTheme.shapes.small,
+                colors = fitTextFieldColors(),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus),
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = { editing = false }) { Text("Cancel") }
+                TextButton(onClick = { onSave(draft.trim()); editing = false }) { Text("Save") }
+            }
+        }
+    } else {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.small)
+                .clickable { editing = true }
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(Icons.Default.Notes, contentDescription = "Exercise notes", tint = muted, modifier = Modifier.size(16.dp))
+            Text(
+                text = notes?.takeIf { it.isNotBlank() } ?: "Add note",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (notes.isNullOrBlank()) muted else MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+            )
         }
     }
 }

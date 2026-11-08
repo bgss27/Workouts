@@ -4,6 +4,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="com.android.vending.BILLING" />
 
+    <!-- Rest-timer alerts while the phone is locked. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <!-- Health Connect: write strength-training sessions to the system store. -->
     <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
     <!-- Health Connect: read daily step counts for the Home step tracker. -->
@@ -49,6 +54,15 @@
                 android:name="health_permissions"
                 android:resource="@array/health_permissions" />
         </activity>
+
+        <!-- Fires when a rest period ends; posts the audible alert. -->
+        <receiver
+            android:name=".notifications.RestAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.fittrack.app.REST_OVER" />
+            </intent-filter>
+        </receiver>
 
         <!-- Exposes rendered share-card images to the system share sheet. -->
         <provider

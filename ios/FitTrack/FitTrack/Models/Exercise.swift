@@ -15,6 +15,9 @@ final class Exercise {
     /// one-shot retag in `SeedData.retagAndExtendIfNeeded` fixes them up
     /// to their real equipment on next launch.
     var equipmentRaw: String?
+    /// Free-form reminder that carries over between sessions ("seat 4, grip
+    /// at rings"). Optional so existing stores migrate additively.
+    var notes: String?
 
     var muscleGroup: MuscleGroup {
         get { MuscleGroup(rawValue: muscleGroupRaw) ?? .chest }

@@ -9,6 +9,8 @@ struct ExercisesView: View {
     @State private var selectedGroup: MuscleGroup?
     @State private var showCustomSheet = false
     @State private var editingCustom: Exercise?
+    /// Exercise whose carry-over note is being edited.
+    @State private var noteTarget: Exercise?
     @State private var deleteBlockedName: String?
 
     private var customCount: Int { allExercises.filter(\.isCustom).count }
@@ -86,6 +88,12 @@ struct ExercisesView: View {
                     currentCustomCount: customCount
                 ) { _ in }
             }
+            .sheet(item: $noteTarget) { exercise in
+                ExerciseNoteSheet(exerciseName: exercise.name, text: exercise.notes ?? "") { note in
+                    exercise.notes = note
+                    try? modelContext.save()
+                }
+            }
             .alert("Can't delete \(deleteBlockedName ?? "")", isPresented: Binding(
                 get: { deleteBlockedName != nil },
                 set: { if !$0 { deleteBlockedName = nil } }
@@ -130,15 +138,16 @@ extension ExercisesView {
     /// Catalog rows are plain; custom rows get edit / delete in a context menu.
     @ViewBuilder
     fileprivate func customAwareRow(_ exercise: Exercise) -> some View {
-        if exercise.isCustom {
-            ExerciseRow(exercise: exercise)
-                .contextMenu {
+        ExerciseRow(exercise: exercise)
+            .contextMenu {
+                Button { noteTarget = exercise } label: {
+                    Label(exercise.notes == nil ? "Add note" : "Edit note", systemImage: "note.text")
+                }
+                if exercise.isCustom {
                     Button { editingCustom = exercise } label: { Label("Edit", systemImage: "pencil") }
                     Button(role: .destructive) { deleteCustom(exercise) } label: { Label("Delete", systemImage: "trash") }
                 }
-        } else {
-            ExerciseRow(exercise: exercise)
-        }
+            }
     }
 
     /// Refuse to delete an exercise that history or a routine still points at,

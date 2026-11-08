@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.fittrack.app.data.entity.Exercise
 import com.fittrack.app.data.entity.MuscleGroup
+import com.fittrack.app.data.entity.SetType
 import com.fittrack.app.data.health.HealthConnectService
 import com.fittrack.app.data.repository.ExerciseRepository
 import com.fittrack.app.data.repository.WorkoutRepository
@@ -36,7 +37,13 @@ data class WorkoutExerciseUiState(
     val supersetGroup: Long? = null,
     /** User explicitly marked this exercise done for the session. */
     val isFinished: Boolean = false,
+    /** Session rest override in seconds; null = user's default. */
+    val restSeconds: Int? = null,
+    /** Last completed session's non-warm-up sets, by index, in kg. */
+    val previousSets: List<PreviousSet> = emptyList(),
 )
+
+data class PreviousSet(val weightKg: Double, val reps: Int)
 
 data class ActiveWorkoutUiState(
     val workoutId: Long = 0,
@@ -140,7 +147,10 @@ class ActiveWorkoutViewModel(
                         val exercise = exerciseRepository.getById(routineExercise.exerciseId) ?: continue
                         // Pre-fill the prescribed number of set rows (e.g. 4x6-8
                         // shows four rows) so the user logs instead of adding.
-                        addExerciseInternal(workoutId, exercise, routineExercise.suggestedSets.coerceIn(1, 10))
+                        addExerciseInternal(
+                            workoutId, exercise, routineExercise.suggestedSets.coerceIn(1, 10),
+                            restSeconds = routineExercise.restSeconds,
+                        )
                     }
                 }
             } else if (initialExerciseIds.isNotEmpty()) {
@@ -220,10 +230,15 @@ class ActiveWorkoutViewModel(
                 workoutExerciseId = ex.workoutExerciseId,
                 exercise = exercise,
                 sets = ex.sets.map { s ->
-                    SetData(reps = s.reps, weight = s.weight, isWarmup = s.isWarmup, rpe = s.rpe, isCompleted = s.isCompleted)
+                    SetData(
+                        reps = s.reps, weight = s.weight, setType = SetType.fromName(s.setType),
+                        rpe = s.rpe, isCompleted = s.isCompleted,
+                    )
                 }.ifEmpty { listOf(SetData()) },
                 supersetGroup = ex.supersetGroup,
                 isFinished = ex.isFinished,
+                restSeconds = ex.restSeconds,
+                previousSets = loadPreviousSets(exercise.id),
             )
         }
         _uiState.update {
@@ -257,9 +272,10 @@ class ActiveWorkoutViewModel(
                             exerciseId = ex.exercise.id,
                             supersetGroup = ex.supersetGroup,
                             sets = ex.sets.map { s ->
-                                WorkoutDraftStore.DraftSet(s.reps, s.weight, s.isWarmup, s.rpe, s.isCompleted)
+                                WorkoutDraftStore.DraftSet(s.reps, s.weight, s.isWarmup, s.rpe, s.isCompleted, s.setType.name)
                             },
                             isFinished = ex.isFinished,
+                            restSeconds = ex.restSeconds,
                         )
                     },
                 )
@@ -267,21 +283,74 @@ class ActiveWorkoutViewModel(
         }
     }
 
-    private suspend fun addExerciseInternal(workoutId: Long, exercise: Exercise, setRows: Int = 1) {
+    private suspend fun addExerciseInternal(
+        workoutId: Long,
+        exercise: Exercise,
+        setRows: Int = 1,
+        restSeconds: Int? = null,
+    ) {
         val orderIndex = _uiState.value.exercises.size
         val workoutExerciseId = workoutRepository.addExerciseToWorkout(
             workoutId, exercise.id, orderIndex
         )
+        val previous = loadPreviousSets(exercise.id)
         _uiState.update { state ->
             state.copy(
                 exercises = state.exercises + WorkoutExerciseUiState(
                     workoutExerciseId = workoutExerciseId,
                     exercise = exercise,
-                    sets = List(setRows.coerceAtLeast(1)) { SetData() }
+                    sets = List(setRows.coerceAtLeast(1)) { SetData() },
+                    restSeconds = restSeconds,
+                    previousSets = previous,
                 )
             )
         }
         persistDraft()
+    }
+
+    private suspend fun loadPreviousSets(exerciseId: Long): List<PreviousSet> =
+        runCatching { workoutRepository.getLastSessionSets(exerciseId) }
+            .getOrDefault(emptyList())
+            .map { PreviousSet(it.weightKg, it.reps) }
+
+    /** Copy last session's weight and reps into an empty set row. */
+    fun fillPreviousSet(exerciseIndex: Int, setIndex: Int) {
+        val state = _uiState.value
+        val ex = state.exercises.getOrNull(exerciseIndex) ?: return
+        val prev = ex.previousSets.getOrNull(setIndex) ?: return
+        val set = ex.sets.getOrNull(setIndex) ?: return
+        val shown = WeightUnits.fromKg(prev.weightKg, state.weightUnit)
+        val weightText = if (shown == shown.toLong().toDouble()) shown.toLong().toString()
+        else "%.1f".format(shown).trimEnd('0').trimEnd('.')
+        updateSet(exerciseIndex, setIndex, set.copy(weight = weightText, reps = prev.reps.toString()))
+    }
+
+    /** Session-only rest override for one exercise; null restores the default. */
+    fun setRestSeconds(exerciseIndex: Int, seconds: Int?) {
+        _uiState.update { state ->
+            if (exerciseIndex !in state.exercises.indices) return@update state
+            val exercises = state.exercises.toMutableList()
+            exercises[exerciseIndex] = exercises[exerciseIndex].copy(restSeconds = seconds)
+            state.copy(exercises = exercises)
+        }
+        persistDraft()
+    }
+
+    /** Save a persistent note on the exercise so it shows next session too. */
+    fun updateExerciseNotes(exerciseIndex: Int, notes: String) {
+        val ex = _uiState.value.exercises.getOrNull(exerciseIndex) ?: return
+        val cleaned = notes.trim().takeIf { it.isNotEmpty() }
+        val updated = ex.exercise.copy(notes = cleaned)
+        _uiState.update { state ->
+            val exercises = state.exercises.toMutableList()
+            exercises.indices.forEach { i ->
+                if (exercises[i].exercise.id == updated.id) {
+                    exercises[i] = exercises[i].copy(exercise = updated)
+                }
+            }
+            state.copy(exercises = exercises)
+        }
+        viewModelScope.launch { exerciseRepository.updateNotes(updated.id, cleaned) }
     }
 
     /**
@@ -327,6 +396,7 @@ class ActiveWorkoutViewModel(
                 workoutRepository.updateSupersetGroup(newId, supersetGroup)
             }
 
+            val previous = loadPreviousSets(newExercise.id)
             _uiState.update { st ->
                 val updated = st.exercises.toMutableList()
                 updated[index] = WorkoutExerciseUiState(
@@ -334,6 +404,8 @@ class ActiveWorkoutViewModel(
                     exercise = newExercise,
                     sets = listOf(SetData()),
                     supersetGroup = supersetGroup,
+                    restSeconds = current.restSeconds,
+                    previousSets = previous,
                 )
                 st.copy(exercises = updated)
             }
@@ -510,6 +582,7 @@ class ActiveWorkoutViewModel(
                         weightKg = weightKg,
                         isWarmup = set.isWarmup,
                         rpe = if (set.isWarmup) null else set.rpe,
+                        setType = set.setType,
                     )
                     savedSets++
                 }

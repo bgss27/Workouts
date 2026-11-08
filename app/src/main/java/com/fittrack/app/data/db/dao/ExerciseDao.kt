@@ -56,6 +56,9 @@ interface ExerciseDao {
     @Update
     suspend fun update(exercise: Exercise)
 
+    @Query("UPDATE exercises SET notes = :notes WHERE id = :id")
+    suspend fun updateNotes(id: Long, notes: String?)
+
     @Delete
     suspend fun delete(exercise: Exercise)
 

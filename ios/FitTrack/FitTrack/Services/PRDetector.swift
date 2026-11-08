@@ -27,7 +27,7 @@ enum PRDetector {
         var bestThisWorkout: [PersistentIdentifier: (name: String, best: Double)] = [:]
         for we in workout.exercises {
             guard let exercise = we.exercise else { continue }
-            for set in we.sets where !set.isWarmup && set.reps > 0 && set.weightKg > 0 {
+            for set in we.sets where set.countsForPR && set.reps > 0 && set.weightKg > 0 {
                 let oneRm = set.weightKg * (1.0 + Double(set.reps) / 30.0)
                 let existing = bestThisWorkout[exercise.persistentModelID]?.best ?? 0
                 if oneRm > existing {
@@ -50,7 +50,7 @@ enum PRDetector {
             var previousBest = 0.0
             for w in allCompleted where w.persistentModelID != workoutId {
                 for we in w.exercises where we.exercise?.persistentModelID == exId {
-                    for set in we.sets where !set.isWarmup && set.reps > 0 && set.weightKg > 0 {
+                    for set in we.sets where set.countsForPR && set.reps > 0 && set.weightKg > 0 {
                         let oneRm = set.weightKg * (1.0 + Double(set.reps) / 30.0)
                         if oneRm > previousBest { previousBest = oneRm }
                     }

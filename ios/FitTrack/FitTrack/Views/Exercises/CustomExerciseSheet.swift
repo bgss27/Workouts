@@ -20,9 +20,14 @@ struct CustomExerciseSheet: View {
     @State private var secondary: MuscleGroup?
     @State private var equipment: Equipment = .barbell
     @State private var duplicateName = false
+    @State private var notes = ""
 
     private var atLimit: Bool { existing == nil && !isPro && currentCustomCount >= freeLimit }
     private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var trimmedNotes: String? {
+        let t = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
+    }
 
     var body: some View {
         NavigationStack {
@@ -61,6 +66,14 @@ struct CustomExerciseSheet: View {
                         ForEach(Equipment.allCases, id: \.self) { Text($0.displayName).tag($0) }
                     }
                 }
+                Section {
+                    TextField("e.g. seat 4, grip at the rings", text: $notes, axis: .vertical)
+                        .lineLimit(2...6)
+                } header: {
+                    Text("Note")
+                } footer: {
+                    Text("Shown every time this exercise comes up in a workout.")
+                }
             }
             .scrollContentBackground(.hidden)
             .background(Color.fitBackground)
@@ -79,6 +92,7 @@ struct CustomExerciseSheet: View {
                 muscleGroup = existing.muscleGroup
                 secondary = existing.secondaryMuscleGroup
                 equipment = existing.equipment
+                notes = existing.notes ?? ""
             }
         }
     }
@@ -97,6 +111,7 @@ struct CustomExerciseSheet: View {
             existing.muscleGroup = muscleGroup
             existing.secondaryMuscleGroup = secondary
             existing.equipment = equipment
+            existing.notes = trimmedNotes
             onSave(existing)
         } else {
             let exercise = Exercise(
@@ -106,6 +121,7 @@ struct CustomExerciseSheet: View {
                 isCustom: true,
                 equipment: equipment
             )
+            exercise.notes = trimmedNotes
             modelContext.insert(exercise)
             onSave(exercise)
         }

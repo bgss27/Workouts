@@ -1,5 +1,6 @@
 package com.fittrack.app.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -23,6 +24,9 @@ data class WorkoutSet(
     val setNumber: Int,
     val reps: Int,
     val weightKg: Double,
+    /** Legacy flag; always equals `setType == SetType.WARMUP`. */
     val isWarmup: Boolean = false,
-    val rpe: Int? = null
+    val rpe: Int? = null,
+    @ColumnInfo(defaultValue = "WORKING")
+    val setType: SetType = if (isWarmup) SetType.WARMUP else SetType.WORKING,
 )

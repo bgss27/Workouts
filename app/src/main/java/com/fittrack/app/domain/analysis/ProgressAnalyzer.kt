@@ -307,13 +307,13 @@ class ProgressAnalyzer(
 
             val currentSets = workoutRepository
                 .getSetsForWorkoutExercise(we.id).first()
-                .filter { !it.isWarmup }
+                .filter { it.setType.countsForPR }
             if (currentSets.isEmpty()) continue
             val newBest = currentSets.maxOf { estimateOneRepMax(it.weightKg, it.reps) }
 
             val allHistoric = workoutRepository
                 .getAllSetsForExercise(we.exerciseId).first()
-            val previousSets = allHistoric.filter { it.workoutExerciseId !in currentWeIds }
+            val previousSets = allHistoric.filter { it.workoutExerciseId !in currentWeIds && it.setType.countsForPR }
             val previousBest = previousSets
                 .maxOfOrNull { estimateOneRepMax(it.weightKg, it.reps) } ?: 0.0
 

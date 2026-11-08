@@ -130,7 +130,7 @@ fun WorkoutDetailScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = if (set.isWarmup) "W" else "${set.setNumber}",
+                                    text = set.setType.badge ?: "${set.setNumber}",
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.weight(1f),
                                     color = if (set.isWarmup) MaterialTheme.colorScheme.tertiary
