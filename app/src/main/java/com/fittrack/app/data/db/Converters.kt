@@ -3,7 +3,9 @@ package com.fittrack.app.data.db
 import androidx.room.TypeConverter
 import com.fittrack.app.data.entity.Equipment
 import com.fittrack.app.data.entity.MuscleGroup
+import com.fittrack.app.data.entity.PhotoPose
 import com.fittrack.app.data.entity.SetType
+import com.fittrack.app.data.entity.TrackingMode
 
 class Converters {
     @TypeConverter
@@ -27,4 +29,16 @@ class Converters {
 
     @TypeConverter
     fun toSetType(value: String?): SetType = SetType.fromName(value)
+
+    @TypeConverter
+    fun fromTrackingMode(value: TrackingMode?): String = (value ?: TrackingMode.WEIGHT_REPS).name
+
+    @TypeConverter
+    fun toTrackingMode(value: String?): TrackingMode = TrackingMode.fromName(value)
+
+    @TypeConverter
+    fun fromPhotoPose(value: PhotoPose?): String = (value ?: PhotoPose.FRONT).name
+
+    @TypeConverter
+    fun toPhotoPose(value: String?): PhotoPose = PhotoPose.fromName(value)
 }

@@ -2,6 +2,7 @@ package com.fittrack.app.domain.ml
 
 import com.fittrack.app.data.entity.Exercise
 import com.fittrack.app.data.entity.MuscleGroup
+import com.fittrack.app.data.entity.TrackingMode
 import com.fittrack.app.data.entity.WorkoutSet
 import com.fittrack.app.data.repository.ExerciseRepository
 import com.fittrack.app.data.repository.WorkoutRepository
@@ -37,7 +38,9 @@ class MlAnalysisEngine(
      * Generate a complete ML insight report for a specific muscle group.
      */
     suspend fun analyzeMuscleGroup(muscleGroup: MuscleGroup): MuscleInsight {
+        // Timed and distance exercises have no 1RM; weekly volume below still counts them.
         val exercises = exerciseRepository.getByMuscleGroup(muscleGroup).first()
+            .filter { it.trackingMode == TrackingMode.WEIGHT_REPS }
         val exerciseInsights = mutableListOf<ExerciseInsight>()
         val all1RMs = mutableListOf<Double>()
         val allVolumes = mutableListOf<Double>()

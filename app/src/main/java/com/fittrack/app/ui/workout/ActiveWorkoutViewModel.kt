@@ -6,6 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.fittrack.app.data.entity.Exercise
 import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.data.entity.SetType
+import com.fittrack.app.data.entity.TrackingMode
+import com.fittrack.app.data.DistanceUnits
+import com.fittrack.app.data.DurationFormat
+import com.fittrack.app.data.SetFormat
+import com.fittrack.app.domain.analysis.ProgressionAdvisor
 import com.fittrack.app.data.health.HealthConnectService
 import com.fittrack.app.data.repository.ExerciseRepository
 import com.fittrack.app.data.repository.WorkoutRepository
@@ -41,9 +46,24 @@ data class WorkoutExerciseUiState(
     val restSeconds: Int? = null,
     /** Last completed session's non-warm-up sets, by index, in kg. */
     val previousSets: List<PreviousSet> = emptyList(),
-)
+    /** Routine's rep prescription ("8-12"), when started from a routine. */
+    val repTarget: String? = null,
+    /** Today's auto-progression target, when the exercise has history. */
+    val progression: ProgressionAdvisor.Suggestion? = null,
+) {
+    val trackingMode: TrackingMode get() = exercise.trackingMode
+}
 
-data class PreviousSet(val weightKg: Double, val reps: Int)
+data class PreviousSet(
+    val weightKg: Double,
+    val reps: Int,
+    val durationSeconds: Int? = null,
+    val distanceMeters: Double? = null,
+) {
+    /** "60 × 8", "1:30", "5.2 km in 28:10" — the text after "Prev". */
+    fun hint(mode: TrackingMode, weightUnit: String): String =
+        SetFormat.describe(mode, weightKg, reps, durationSeconds, distanceMeters, weightUnit, weightWithUnit = false)
+}
 
 data class ActiveWorkoutUiState(
     val workoutId: Long = 0,
@@ -150,6 +170,7 @@ class ActiveWorkoutViewModel(
                         addExerciseInternal(
                             workoutId, exercise, routineExercise.suggestedSets.coerceIn(1, 10),
                             restSeconds = routineExercise.restSeconds,
+                            repTarget = routineExercise.suggestedReps,
                         )
                     }
                 }
@@ -233,12 +254,14 @@ class ActiveWorkoutViewModel(
                     SetData(
                         reps = s.reps, weight = s.weight, setType = SetType.fromName(s.setType),
                         rpe = s.rpe, isCompleted = s.isCompleted,
+                        duration = s.duration, distance = s.distance,
                     )
                 }.ifEmpty { listOf(SetData()) },
                 supersetGroup = ex.supersetGroup,
                 isFinished = ex.isFinished,
                 restSeconds = ex.restSeconds,
                 previousSets = loadPreviousSets(exercise.id),
+                progression = loadProgression(exercise, null),
             )
         }
         _uiState.update {
@@ -272,7 +295,10 @@ class ActiveWorkoutViewModel(
                             exerciseId = ex.exercise.id,
                             supersetGroup = ex.supersetGroup,
                             sets = ex.sets.map { s ->
-                                WorkoutDraftStore.DraftSet(s.reps, s.weight, s.isWarmup, s.rpe, s.isCompleted, s.setType.name)
+                                WorkoutDraftStore.DraftSet(
+                                    s.reps, s.weight, s.isWarmup, s.rpe, s.isCompleted, s.setType.name,
+                                    duration = s.duration, distance = s.distance,
+                                )
                             },
                             isFinished = ex.isFinished,
                             restSeconds = ex.restSeconds,
@@ -288,12 +314,14 @@ class ActiveWorkoutViewModel(
         exercise: Exercise,
         setRows: Int = 1,
         restSeconds: Int? = null,
+        repTarget: String? = null,
     ) {
         val orderIndex = _uiState.value.exercises.size
         val workoutExerciseId = workoutRepository.addExerciseToWorkout(
             workoutId, exercise.id, orderIndex
         )
         val previous = loadPreviousSets(exercise.id)
+        val progression = loadProgression(exercise, repTarget)
         _uiState.update { state ->
             state.copy(
                 exercises = state.exercises + WorkoutExerciseUiState(
@@ -302,6 +330,8 @@ class ActiveWorkoutViewModel(
                     sets = List(setRows.coerceAtLeast(1)) { SetData() },
                     restSeconds = restSeconds,
                     previousSets = previous,
+                    repTarget = repTarget,
+                    progression = progression,
                 )
             )
         }
@@ -311,18 +341,65 @@ class ActiveWorkoutViewModel(
     private suspend fun loadPreviousSets(exerciseId: Long): List<PreviousSet> =
         runCatching { workoutRepository.getLastSessionSets(exerciseId) }
             .getOrDefault(emptyList())
-            .map { PreviousSet(it.weightKg, it.reps) }
+            .map { PreviousSet(it.weightKg, it.reps, it.durationSeconds, it.distanceMeters) }
 
-    /** Copy last session's weight and reps into an empty set row. */
+    /** Today's target from the last three completed sessions (weight × reps only). */
+    private suspend fun loadProgression(exercise: Exercise, repTarget: String?): ProgressionAdvisor.Suggestion? {
+        if (exercise.trackingMode != TrackingMode.WEIGHT_REPS) return null
+        return runCatching {
+            val rows = workoutRepository.getSetRowsForExercise(exercise.id).first()
+            val sessions = rows.groupBy { it.set.workoutExerciseId }.values
+                .map { session -> session.first().workoutStartTime to session.map { it.set } }
+                .sortedByDescending { it.first }
+                .take(3)
+                .map { it.second }
+            ProgressionAdvisor.suggest(
+                exercise, sessions, ProgressionAdvisor.RepTarget.parse(repTarget), _uiState.value.weightUnit,
+            )
+        }.getOrNull()
+    }
+
+    /** Fill every blank non-warm-up row with the progression target. */
+    fun applyProgression(exerciseIndex: Int) {
+        val ex = _uiState.value.exercises.getOrNull(exerciseIndex) ?: return
+        val target = ex.progression ?: return
+        val unit = _uiState.value.weightUnit
+        val weightText = if (target.weightKg > 0) WeightUnits.formatNumber(target.weightKg, unit) else ""
+        _uiState.update { state ->
+            val exercises = state.exercises.toMutableList()
+            val current = exercises[exerciseIndex]
+            exercises[exerciseIndex] = current.copy(
+                sets = current.sets.map { s ->
+                    if (!s.isWarmup && s.isBlankFor(TrackingMode.WEIGHT_REPS))
+                        s.copy(weight = weightText, reps = target.reps.toString())
+                    else s
+                }
+            )
+            state.copy(exercises = exercises)
+        }
+        persistDraft()
+    }
+
+    /** Copy last session's numbers into an empty set row, per tracking mode. */
     fun fillPreviousSet(exerciseIndex: Int, setIndex: Int) {
         val state = _uiState.value
         val ex = state.exercises.getOrNull(exerciseIndex) ?: return
         val prev = ex.previousSets.getOrNull(setIndex) ?: return
         val set = ex.sets.getOrNull(setIndex) ?: return
-        val shown = WeightUnits.fromKg(prev.weightKg, state.weightUnit)
-        val weightText = if (shown == shown.toLong().toDouble()) shown.toLong().toString()
-        else "%.1f".format(shown).trimEnd('0').trimEnd('.')
-        updateSet(exerciseIndex, setIndex, set.copy(weight = weightText, reps = prev.reps.toString()))
+        val mode = ex.trackingMode
+        val weightText = WeightUnits.formatNumber(prev.weightKg, state.weightUnit)
+        val distUnit = DistanceUnits.label(mode, state.weightUnit)
+        updateSet(
+            exerciseIndex, setIndex,
+            set.copy(
+                weight = if (mode.usesWeight) weightText else set.weight,
+                reps = if (mode.usesReps) prev.reps.toString() else set.reps,
+                duration = if (mode.usesDuration) prev.durationSeconds?.let { DurationFormat.format(it) } ?: set.duration else set.duration,
+                distance = if (mode.usesDistance) prev.distanceMeters?.let {
+                    DistanceUnits.formatNumber(DistanceUnits.fromMeters(it, distUnit))
+                } ?: set.distance else set.distance,
+            )
+        )
     }
 
     /** Session-only rest override for one exercise; null restores the default. */
@@ -397,6 +474,7 @@ class ActiveWorkoutViewModel(
             }
 
             val previous = loadPreviousSets(newExercise.id)
+            val progression = loadProgression(newExercise, current.repTarget)
             _uiState.update { st ->
                 val updated = st.exercises.toMutableList()
                 updated[index] = WorkoutExerciseUiState(
@@ -406,6 +484,8 @@ class ActiveWorkoutViewModel(
                     supersetGroup = supersetGroup,
                     restSeconds = current.restSeconds,
                     previousSets = previous,
+                    repTarget = current.repTarget,
+                    progression = progression,
                 )
                 st.copy(exercises = updated)
             }
@@ -566,12 +646,15 @@ class ActiveWorkoutViewModel(
             // Save all sets to database
             val isLbs = _uiState.value.weightUnit == "lbs"
             var savedSets = 0
+            val unit = _uiState.value.weightUnit
             for (exerciseState in _uiState.value.exercises) {
+                val mode = exerciseState.trackingMode
+                val distUnit = DistanceUnits.label(mode, unit)
                 var setNumber = 0
                 for (set in exerciseState.sets) {
-                    val reps = set.reps.toIntOrNull() ?: continue
-                    val typedWeight = set.weight.toDoubleOrNull() ?: continue
-                    if (reps <= 0) continue
+                    if (!set.isValidFor(mode)) continue
+                    val reps = if (mode.usesReps) set.reps.toIntOrNull() ?: 0 else 0
+                    val typedWeight = if (mode.usesWeight) set.weight.toDoubleOrNull() ?: 0.0 else 0.0
                     if (!set.isWarmup) setNumber++
                     // Storage is always kg; convert if user typed in lbs.
                     val weightKg = if (isLbs) typedWeight * KG_PER_LB else typedWeight
@@ -583,6 +666,8 @@ class ActiveWorkoutViewModel(
                         isWarmup = set.isWarmup,
                         rpe = if (set.isWarmup) null else set.rpe,
                         setType = set.setType,
+                        durationSeconds = if (mode.usesDuration) set.durationSeconds else null,
+                        distanceMeters = if (mode.usesDistance) set.distance.toDoubleOrNull()?.let { DistanceUnits.toMeters(it, distUnit) } else null,
                     )
                     savedSets++
                 }
@@ -640,7 +725,7 @@ class ActiveWorkoutViewModel(
             else -> "%.0f".format(volumeTyped)
         } + " " + unit
         val lines = exercises.map { ex ->
-            val n = ex.sets.count { !it.isWarmup && it.reps.toIntOrNull() != null && it.weight.toDoubleOrNull() != null }
+            val n = ex.sets.count { !it.isWarmup && it.isValidFor(ex.trackingMode) }
             "${ex.exercise.name} · $n ${if (n == 1) "set" else "sets"}"
         }
         val completed = workoutRepository.getAllWorkouts().first()

@@ -6,12 +6,19 @@ import androidx.lifecycle.viewModelScope
 import com.fittrack.app.data.entity.MuscleGroup
 import com.fittrack.app.domain.ml.MlAnalysisEngine
 import com.fittrack.app.domain.ml.MuscleInsight
+import com.fittrack.app.domain.analysis.VolumeAnalyzer
+import com.fittrack.app.domain.analysis.WeeklyVolumeReport
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class MuscleInsightViewModel(
-    private val mlEngine: MlAnalysisEngine
+    private val mlEngine: MlAnalysisEngine,
+    private val volumeAnalyzer: VolumeAnalyzer? = null,
 ) : ViewModel() {
+
+    /** This week's hard sets per muscle group, for the summary tile. */
+    private val _volume = MutableStateFlow<WeeklyVolumeReport?>(null)
+    val volume: StateFlow<WeeklyVolumeReport?> = _volume
 
     private val _allInsights = MutableStateFlow<List<MuscleInsight>>(emptyList())
     val allInsights: StateFlow<List<MuscleInsight>> = _allInsights
@@ -27,6 +34,9 @@ class MuscleInsightViewModel(
 
     init {
         loadAllInsights()
+        viewModelScope.launch {
+            _volume.value = runCatching { volumeAnalyzer?.report(0) }.getOrNull()
+        }
     }
 
     private fun loadAllInsights() {
@@ -51,11 +61,12 @@ class MuscleInsightViewModel(
     }
 
     class Factory(
-        private val mlEngine: MlAnalysisEngine
+        private val mlEngine: MlAnalysisEngine,
+        private val volumeAnalyzer: VolumeAnalyzer? = null,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return MuscleInsightViewModel(mlEngine) as T
+            return MuscleInsightViewModel(mlEngine, volumeAnalyzer) as T
         }
     }
 }

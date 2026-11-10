@@ -40,7 +40,22 @@ struct LogPastWorkoutView: View {
         let id = UUID()
         var weight: String = ""
         var reps: String = ""
+        var duration: String = ""
+        var distance: String = ""
         var isWarmup: Bool = false
+
+        /// Mirrors `ActiveWorkoutView.SetEntry.isValid(for:)`.
+        func isValid(for mode: TrackingMode) -> Bool {
+            switch mode {
+            case .weightReps:
+                return (Int(reps) ?? 0) > 0 && Double(weight) != nil
+            default:
+                if mode.usesWeight && (Double(weight) ?? 0) <= 0 { return false }
+                if mode.usesDuration && (DurationFormat.parse(duration) ?? 0) <= 0 { return false }
+                if mode.usesDistance && (Double(distance) ?? 0) <= 0 { return false }
+                return true
+            }
+        }
     }
 
     init(initialDate: Date? = nil) {
@@ -144,11 +159,8 @@ struct LogPastWorkoutView: View {
     private var canSave: Bool {
         !entries.isEmpty
             && entries.allSatisfy { e in
-                // At least one non-warmup set with valid weight + reps per
-                // exercise, OR the exercise has at least one warmup set.
-                e.sets.contains { s in
-                    (Int(s.reps) ?? 0) > 0 && (Double(s.weight) ?? 0) > 0
-                }
+                // At least one saveable set per exercise.
+                e.sets.contains { $0.isValid(for: e.exercise.trackingMode) }
             }
             && combinedEnd > combinedStart
     }
@@ -174,16 +186,20 @@ struct LogPastWorkoutView: View {
             let we = WorkoutExercise(exercise: entry.exercise, orderIndex: i)
             we.workout = workout
             workout.exercises.append(we)
+            let mode = entry.exercise.trackingMode
+            let distanceUnit = DistanceUnits.unit(for: mode, weightUnit: weightUnit)
             var setNum = 0
-            for set in entry.sets {
-                guard let reps = Int(set.reps), let typedWeight = Double(set.weight), reps > 0 else { continue }
+            for set in entry.sets where set.isValid(for: mode) {
                 if !set.isWarmup { setNum += 1 }
+                let typedWeight = mode.usesWeight ? (Double(set.weight) ?? 0) : 0
                 let weightKg = isLbs ? typedWeight * 0.45359237 : typedWeight
                 let ws = WorkoutSet(
                     setNumber: set.isWarmup ? 0 : setNum,
-                    reps: reps,
+                    reps: mode.usesReps ? (Int(set.reps) ?? 0) : 0,
                     weightKg: weightKg,
-                    isWarmup: set.isWarmup
+                    setType: set.isWarmup ? .warmup : .working,
+                    durationSeconds: mode.usesDuration ? DurationFormat.parse(set.duration) : nil,
+                    distanceMeters: mode.usesDistance ? Double(set.distance).map { DistanceUnits.toMeters($0, unit: distanceUnit) } : nil
                 )
                 ws.workoutExercise = we
                 we.sets.append(ws)
@@ -279,18 +295,34 @@ private struct ExerciseEntryView: View {
                     Image(systemName: "trash").font(.caption)
                 }
             }
+            let mode = entry.exercise.trackingMode
+            let distanceUnit = DistanceUnits.unit(for: mode, weightUnit: weightUnit)
             ForEach($entry.sets) { $set in
                 HStack(spacing: 8) {
                     Text(set.isWarmup ? "W" : "\(entry.sets.firstIndex(where: { $0.id == set.id }).map { $0 + 1 } ?? 0)")
                         .frame(width: 20)
                         .font(.caption)
                         .foregroundColor(set.isWarmup ? .teal : .primary)
-                    TextField(weightUnit, text: $set.weight)
-                        .keyboardType(.decimalPad)
-                        .textFieldStyle(.roundedBorder)
-                    TextField("Reps", text: $set.reps)
-                        .keyboardType(.numberPad)
-                        .textFieldStyle(.roundedBorder)
+                    if mode.usesWeight {
+                        TextField(weightUnit, text: $set.weight)
+                            .keyboardType(.decimalPad)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    if mode.usesReps {
+                        TextField("Reps", text: $set.reps)
+                            .keyboardType(.numberPad)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    if mode.usesDuration {
+                        TextField("m:ss", text: $set.duration)
+                            .keyboardType(.numbersAndPunctuation)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    if mode.usesDistance {
+                        TextField(distanceUnit.rawValue, text: $set.distance)
+                            .keyboardType(.decimalPad)
+                            .textFieldStyle(.roundedBorder)
+                    }
                     Button {
                         set.isWarmup.toggle()
                     } label: {

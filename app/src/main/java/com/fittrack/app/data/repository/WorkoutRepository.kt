@@ -78,6 +78,8 @@ class WorkoutRepository(
         isWarmup: Boolean = false,
         rpe: Int? = null,
         setType: SetType = if (isWarmup) SetType.WARMUP else SetType.WORKING,
+        durationSeconds: Int? = null,
+        distanceMeters: Double? = null,
     ): Long =
         workoutSetDao.insertSet(
             WorkoutSet(
@@ -88,6 +90,8 @@ class WorkoutRepository(
                 isWarmup = setType == SetType.WARMUP,
                 rpe = rpe,
                 setType = setType,
+                durationSeconds = durationSeconds,
+                distanceMeters = distanceMeters,
             )
         )
 
@@ -114,6 +118,10 @@ class WorkoutRepository(
     /** Every working set of every completed workout, grouped by exercise id. */
     suspend fun getWorkingSetsByExercise(): Map<Long, List<ExerciseSetRow>> =
         workoutSetDao.getAllWorkingSetRows().groupBy { it.exerciseId }
+
+    /** Non-warm-up sets of completed workouts since [sinceMs], every tracking mode. */
+    suspend fun getNonWarmupSetRowsSince(sinceMs: Long): List<ExerciseSetRow> =
+        workoutSetDao.getNonWarmupSetRowsSince(sinceMs)
 
     fun getSetRowsForExercise(exerciseId: Long): Flow<List<ExerciseSetRow>> =
         workoutSetDao.getSetRowsForExercise(exerciseId)

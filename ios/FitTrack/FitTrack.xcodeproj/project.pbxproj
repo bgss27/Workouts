@@ -60,6 +60,13 @@
 		AA00000100000000000005A /* CustomExerciseSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000015A /* CustomExerciseSheet.swift */; };
 		AA00000100000000000005B /* StoreBackup.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000015B /* StoreBackup.swift */; };
 		AA00000100000000000005F /* RoutineFolderSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000015F /* RoutineFolderSheet.swift */; };
+		AA00000100000000000060 /* TrackingMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000001060 /* TrackingMode.swift */; };
+		AA00000100000000000061 /* ProgressPhoto.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000001061 /* ProgressPhoto.swift */; };
+		AA00000100000000000062 /* ProgressionAdvisor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000001062 /* ProgressionAdvisor.swift */; };
+		AA00000100000000000063 /* VolumeGuidance.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000001063 /* VolumeGuidance.swift */; };
+		AA00000100000000000064 /* ProgressPhotoStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000001064 /* ProgressPhotoStore.swift */; };
+		AA00000100000000000065 /* VolumeGuidanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000001065 /* VolumeGuidanceView.swift */; };
+		AA00000100000000000066 /* ProgressPhotosView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000001066 /* ProgressPhotosView.swift */; };
 		AA00000100000000000005E /* WorkoutControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000015E /* WorkoutControls.swift */; };
 		AA00000100000000000005D /* LastSessionLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000015D /* LastSessionLookup.swift */; };
 		AA00000100000000000005C /* RestTimerNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000015C /* RestTimerNotifier.swift */; };
@@ -122,6 +129,13 @@
 		AA00000100000000000015A /* CustomExerciseSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomExerciseSheet.swift; sourceTree = "<group>"; };
 		AA00000100000000000015B /* StoreBackup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreBackup.swift; sourceTree = "<group>"; };
 		AA00000100000000000015F /* RoutineFolderSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutineFolderSheet.swift; sourceTree = "<group>"; };
+		AA00000100000000001060 /* TrackingMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackingMode.swift; sourceTree = "<group>"; };
+		AA00000100000000001061 /* ProgressPhoto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressPhoto.swift; sourceTree = "<group>"; };
+		AA00000100000000001062 /* ProgressionAdvisor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressionAdvisor.swift; sourceTree = "<group>"; };
+		AA00000100000000001063 /* VolumeGuidance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeGuidance.swift; sourceTree = "<group>"; };
+		AA00000100000000001064 /* ProgressPhotoStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressPhotoStore.swift; sourceTree = "<group>"; };
+		AA00000100000000001065 /* VolumeGuidanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeGuidanceView.swift; sourceTree = "<group>"; };
+		AA00000100000000001066 /* ProgressPhotosView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressPhotosView.swift; sourceTree = "<group>"; };
 		AA00000100000000000015E /* WorkoutControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutControls.swift; sourceTree = "<group>"; };
 		AA00000100000000000015D /* LastSessionLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastSessionLookup.swift; sourceTree = "<group>"; };
 		AA00000100000000000015C /* RestTimerNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTimerNotifier.swift; sourceTree = "<group>"; };
@@ -174,6 +188,8 @@
 		AA000001000000000000330 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				AA00000100000000001060 /* TrackingMode.swift */,
+				AA00000100000000001061 /* ProgressPhoto.swift */,
 				AA000001000000000000158 /* BodyMetric.swift */,
 				AA000001000000000000103 /* MuscleGroup.swift */,
 				AA000001000000000000104 /* Exercise.swift */,
@@ -192,6 +208,9 @@
 		AA000001000000000000340 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				AA00000100000000001062 /* ProgressionAdvisor.swift */,
+				AA00000100000000001063 /* VolumeGuidance.swift */,
+				AA00000100000000001064 /* ProgressPhotoStore.swift */,
 				AA00000100000000000015B /* StoreBackup.swift */,
 				AA00000100000000000015D /* LastSessionLookup.swift */,
 				AA00000100000000000015C /* RestTimerNotifier.swift */,
@@ -281,6 +300,7 @@
 		AA000001000000000000365 /* Insights */ = {
 			isa = PBXGroup;
 			children = (
+				AA00000100000000001065 /* VolumeGuidanceView.swift */,
 				AA000001000000000000121 /* InsightsView.swift */,
 			);
 			path = Insights;
@@ -297,6 +317,7 @@
 		AA000001000000000000367 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				AA00000100000000001066 /* ProgressPhotosView.swift */,
 				AA000001000000000000159 /* BodyMetricsView.swift */,
 				AA000001000000000000125 /* SettingsView.swift */,
 			);
@@ -403,6 +424,13 @@
 			files = (
 				AA00000100000000000005B /* StoreBackup.swift in Sources */,
 				AA00000100000000000005F /* RoutineFolderSheet.swift in Sources */,
+				AA00000100000000000060 /* TrackingMode.swift in Sources */,
+				AA00000100000000000061 /* ProgressPhoto.swift in Sources */,
+				AA00000100000000000062 /* ProgressionAdvisor.swift in Sources */,
+				AA00000100000000000063 /* VolumeGuidance.swift in Sources */,
+				AA00000100000000000064 /* ProgressPhotoStore.swift in Sources */,
+				AA00000100000000000065 /* VolumeGuidanceView.swift in Sources */,
+				AA00000100000000000066 /* ProgressPhotosView.swift in Sources */,
 				AA00000100000000000005E /* WorkoutControls.swift in Sources */,
 				AA00000100000000000005D /* LastSessionLookup.swift in Sources */,
 				AA00000100000000000005C /* RestTimerNotifier.swift in Sources */,
@@ -593,6 +621,7 @@
 				INFOPLIST_FILE = FitTrack/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FitTrack;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "FitTrack uses the camera to take progress photos that stay on your device.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "FitTrack reads your daily step count from Apple Health to show it on the Home screen.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "FitTrack writes your finished strength-training workouts to Apple Health when sync is enabled in Settings.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -629,6 +658,7 @@
 				INFOPLIST_FILE = FitTrack/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FitTrack;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "FitTrack uses the camera to take progress photos that stay on your device.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "FitTrack reads your daily step count from Apple Health to show it on the Home screen.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "FitTrack writes your finished strength-training workouts to Apple Health when sync is enabled in Settings.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

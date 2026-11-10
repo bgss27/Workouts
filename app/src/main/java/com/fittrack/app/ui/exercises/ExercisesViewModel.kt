@@ -39,6 +39,14 @@ class ExercisesViewModel(
         }
     }
 
+    /** Change how sets of this exercise are recorded (any exercise, not just custom). */
+    fun setTrackingMode(exercise: Exercise, mode: com.fittrack.app.data.entity.TrackingMode) {
+        viewModelScope.launch {
+            exerciseRepository.updateTrackingMode(exercise.id, mode)
+            reload()
+        }
+    }
+
     fun deleteCustom(exercise: Exercise) {
         viewModelScope.launch {
             val removed = exerciseRepository.deleteCustom(exercise)

@@ -5,6 +5,8 @@ import SwiftData
 struct PreviousSet: Equatable, Codable {
     let weightKg: Double
     let reps: Int
+    var durationSeconds: Int? = nil
+    var distanceMeters: Double? = nil
 }
 
 /// "What did I do last time?" for the active workout's ghost values.
@@ -26,21 +28,51 @@ enum LastSessionLookup {
             guard let we = workout.exercises.first(where: { $0.exercise?.persistentModelID == id }) else { continue }
             let sets = we.sets.filter { !$0.isWarmup }.sorted { $0.setNumber < $1.setNumber }
             if !sets.isEmpty {
-                return sets.map { PreviousSet(weightKg: $0.weightKg, reps: $0.reps) }
+                return sets.map {
+                    PreviousSet(weightKg: $0.weightKg, reps: $0.reps,
+                                durationSeconds: $0.durationSeconds, distanceMeters: $0.distanceMeters)
+                }
             }
         }
         return []
     }
 
-    /// Weight in the display unit as the text the set field would hold.
-    static func weightText(_ weightKg: Double, unit: String) -> String {
-        let value = unit == "lbs" ? weightKg * 2.2046226218 : weightKg
-        // Snap to the nearest 0.5 so lbs conversions don't show 132.277.
-        let snapped = (value * 2).rounded() / 2
-        return snapped == snapped.rounded() ? String(Int(snapped)) : String(format: "%.1f", snapped)
+    /// Last up to `limit` completed sessions (newest first) for the progression
+    /// advisor: each session's non-warm-up sets in set order.
+    static func recentSessions(for exercise: Exercise, in context: ModelContext, limit: Int = 3) -> [[WorkoutSet]] {
+        let id = exercise.persistentModelID
+        var descriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate { $0.endTime != nil },
+            sortBy: [SortDescriptor(\.startTime, order: .reverse)]
+        )
+        descriptor.fetchLimit = 200
+        let workouts = (try? context.fetch(descriptor)) ?? []
+        var out: [[WorkoutSet]] = []
+        for workout in workouts {
+            guard let we = workout.exercises.first(where: { $0.exercise?.persistentModelID == id }) else { continue }
+            let sets = we.sets.filter { !$0.isWarmup }.sorted { $0.setNumber < $1.setNumber }
+            if !sets.isEmpty { out.append(sets) }
+            if out.count == limit { break }
+        }
+        return out
     }
 
-    static func hint(_ set: PreviousSet, unit: String) -> String {
-        "Prev \(weightText(set.weightKg, unit: unit)) × \(set.reps)"
+    /// Weight in the display unit as the text the set field would hold.
+    static func weightText(_ weightKg: Double, unit: String) -> String {
+        SetFormat.weightText(weightKg, unit: unit)
+    }
+
+    /// "Prev 60 × 8", "Prev 1:30", "Prev 40 × 1:00", "Prev 5.2 km · 28:10", "Prev 40 × 30 m".
+    static func hint(_ set: PreviousSet, mode: TrackingMode, unit: String) -> String {
+        let weight = weightText(set.weightKg, unit: unit)
+        let duration = DurationFormat.format(set.durationSeconds ?? 0)
+        let distance = DistanceUnits.format(set.distanceMeters ?? 0, unit: DistanceUnits.unit(for: mode, weightUnit: unit))
+        switch mode {
+        case .weightReps: return "Prev \(weight) × \(set.reps)"
+        case .duration: return "Prev \(duration)"
+        case .weightDuration: return "Prev \(weight) × \(duration)"
+        case .distanceDuration: return "Prev \(distance) · \(duration)"
+        case .weightDistance: return "Prev \(weight) × \(distance)"
+        }
     }
 }

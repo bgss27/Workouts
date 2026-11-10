@@ -8,6 +8,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.fittrack.app.data.db.dao.BodyMetricDao
+import com.fittrack.app.data.db.dao.ProgressPhotoDao
 import com.fittrack.app.data.db.dao.ExerciseDao
 import com.fittrack.app.data.db.dao.RoutineDao
 import com.fittrack.app.data.db.dao.UserPlanDao
@@ -55,7 +56,7 @@ internal val SEED_EXERCISES: List<Exercise> = listOf(
     // low bar or a sturdy table you can fit under. Pure bodyweight "no
     // equipment" users can't actually do it without furniture.
     Exercise(name = "Inverted Row", muscleGroup = MuscleGroup.BACK, secondaryMuscleGroup = MuscleGroup.BICEPS, equipment = Equipment.PULL_UP_BAR),
-    Exercise(name = "Superman Hold", muscleGroup = MuscleGroup.BACK, equipment = Equipment.BODYWEIGHT),
+    Exercise(name = "Superman Hold", muscleGroup = MuscleGroup.BACK, equipment = Equipment.BODYWEIGHT, trackingMode = TrackingMode.DURATION),
     Exercise(name = "Reverse Snow Angel", muscleGroup = MuscleGroup.BACK, equipment = Equipment.BODYWEIGHT),
     Exercise(name = "Band Pull-Apart", muscleGroup = MuscleGroup.BACK, secondaryMuscleGroup = MuscleGroup.SHOULDERS, equipment = Equipment.BAND),
     // v7 additions sourced from wger Workout Manager (wger.de, CC-BY-SA 3.0).
@@ -77,7 +78,7 @@ internal val SEED_EXERCISES: List<Exercise> = listOf(
     // Shoulders — bodyweight additions
     Exercise(name = "Pike Push-Up", muscleGroup = MuscleGroup.SHOULDERS, secondaryMuscleGroup = MuscleGroup.TRICEPS, equipment = Equipment.BODYWEIGHT),
     Exercise(name = "Decline Pike Push-Up", muscleGroup = MuscleGroup.SHOULDERS, secondaryMuscleGroup = MuscleGroup.TRICEPS, equipment = Equipment.BODYWEIGHT),
-    Exercise(name = "Wall Handstand Hold", muscleGroup = MuscleGroup.SHOULDERS, equipment = Equipment.BODYWEIGHT),
+    Exercise(name = "Wall Handstand Hold", muscleGroup = MuscleGroup.SHOULDERS, equipment = Equipment.BODYWEIGHT, trackingMode = TrackingMode.DURATION),
 
     // Biceps
     Exercise(name = "Barbell Curl", muscleGroup = MuscleGroup.BICEPS, equipment = Equipment.BARBELL),
@@ -95,7 +96,7 @@ internal val SEED_EXERCISES: List<Exercise> = listOf(
     Exercise(name = "Isometric Biceps Flex", muscleGroup = MuscleGroup.BICEPS, equipment = Equipment.BODYWEIGHT),
     Exercise(name = "Self-Resistance Curl", muscleGroup = MuscleGroup.BICEPS, equipment = Equipment.BODYWEIGHT),
     Exercise(name = "Towel Biceps Curl", muscleGroup = MuscleGroup.BICEPS, secondaryMuscleGroup = MuscleGroup.FOREARMS, equipment = Equipment.BODYWEIGHT),
-    Exercise(name = "Side Biceps Hold", muscleGroup = MuscleGroup.BICEPS, secondaryMuscleGroup = MuscleGroup.SHOULDERS, equipment = Equipment.BODYWEIGHT),
+    Exercise(name = "Side Biceps Hold", muscleGroup = MuscleGroup.BICEPS, secondaryMuscleGroup = MuscleGroup.SHOULDERS, equipment = Equipment.BODYWEIGHT, trackingMode = TrackingMode.DURATION),
 
     // Triceps
     Exercise(name = "Tricep Pushdown", muscleGroup = MuscleGroup.TRICEPS, equipment = Equipment.MACHINE),
@@ -120,7 +121,7 @@ internal val SEED_EXERCISES: List<Exercise> = listOf(
     Exercise(name = "Bodyweight Squat", muscleGroup = MuscleGroup.LEGS, secondaryMuscleGroup = MuscleGroup.GLUTES, equipment = Equipment.BODYWEIGHT),
     Exercise(name = "Jump Squat", muscleGroup = MuscleGroup.LEGS, secondaryMuscleGroup = MuscleGroup.GLUTES, equipment = Equipment.BODYWEIGHT),
     Exercise(name = "Pistol Squat", muscleGroup = MuscleGroup.LEGS, secondaryMuscleGroup = MuscleGroup.GLUTES, equipment = Equipment.BODYWEIGHT),
-    Exercise(name = "Wall Sit", muscleGroup = MuscleGroup.LEGS, equipment = Equipment.BODYWEIGHT),
+    Exercise(name = "Wall Sit", muscleGroup = MuscleGroup.LEGS, equipment = Equipment.BODYWEIGHT, trackingMode = TrackingMode.DURATION),
     Exercise(name = "Reverse Lunge", muscleGroup = MuscleGroup.LEGS, secondaryMuscleGroup = MuscleGroup.GLUTES, equipment = Equipment.BODYWEIGHT),
 
     // Glutes
@@ -132,7 +133,7 @@ internal val SEED_EXERCISES: List<Exercise> = listOf(
     Exercise(name = "Fire Hydrant", muscleGroup = MuscleGroup.GLUTES, equipment = Equipment.BODYWEIGHT),
 
     // Abs
-    Exercise(name = "Plank", muscleGroup = MuscleGroup.ABS, equipment = Equipment.BODYWEIGHT),
+    Exercise(name = "Plank", muscleGroup = MuscleGroup.ABS, equipment = Equipment.BODYWEIGHT, trackingMode = TrackingMode.DURATION),
     Exercise(name = "Cable Crunch", muscleGroup = MuscleGroup.ABS, equipment = Equipment.MACHINE),
     Exercise(name = "Hanging Leg Raise", muscleGroup = MuscleGroup.ABS, equipment = Equipment.PULL_UP_BAR),
     Exercise(name = "Ab Wheel Rollout", muscleGroup = MuscleGroup.ABS, equipment = Equipment.BODYWEIGHT),
@@ -140,7 +141,7 @@ internal val SEED_EXERCISES: List<Exercise> = listOf(
     Exercise(name = "Bicycle Crunch", muscleGroup = MuscleGroup.ABS, equipment = Equipment.BODYWEIGHT),
     Exercise(name = "Mountain Climbers", muscleGroup = MuscleGroup.ABS, equipment = Equipment.BODYWEIGHT),
     Exercise(name = "Dead Bug", muscleGroup = MuscleGroup.ABS, equipment = Equipment.BODYWEIGHT),
-    Exercise(name = "Hollow Hold", muscleGroup = MuscleGroup.ABS, equipment = Equipment.BODYWEIGHT),
+    Exercise(name = "Hollow Hold", muscleGroup = MuscleGroup.ABS, equipment = Equipment.BODYWEIGHT, trackingMode = TrackingMode.DURATION),
     Exercise(name = "Lying Leg Raise", muscleGroup = MuscleGroup.ABS, equipment = Equipment.BODYWEIGHT),
 
     // Calves
@@ -152,8 +153,8 @@ internal val SEED_EXERCISES: List<Exercise> = listOf(
     // Forearms
     Exercise(name = "Wrist Curl", muscleGroup = MuscleGroup.FOREARMS, equipment = Equipment.DUMBBELL),
     Exercise(name = "Reverse Wrist Curl", muscleGroup = MuscleGroup.FOREARMS, equipment = Equipment.DUMBBELL),
-    Exercise(name = "Farmer's Walk", muscleGroup = MuscleGroup.FOREARMS, equipment = Equipment.DUMBBELL),
-    Exercise(name = "Dead Hang", muscleGroup = MuscleGroup.FOREARMS, equipment = Equipment.PULL_UP_BAR),
+    Exercise(name = "Farmer's Walk", muscleGroup = MuscleGroup.FOREARMS, equipment = Equipment.DUMBBELL, trackingMode = TrackingMode.WEIGHT_DISTANCE),
+    Exercise(name = "Dead Hang", muscleGroup = MuscleGroup.FOREARMS, equipment = Equipment.PULL_UP_BAR, trackingMode = TrackingMode.DURATION),
 )
 
 @Database(
@@ -165,9 +166,10 @@ internal val SEED_EXERCISES: List<Exercise> = listOf(
         Routine::class,
         RoutineExercise::class,
         UserPlan::class,
-        BodyMetric::class
+        BodyMetric::class,
+        ProgressPhoto::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -178,6 +180,7 @@ abstract class FitTrackDatabase : RoomDatabase() {
     abstract fun routineDao(): RoutineDao
     abstract fun userPlanDao(): UserPlanDao
     abstract fun bodyMetricDao(): BodyMetricDao
+    abstract fun progressPhotoDao(): ProgressPhotoDao
 
     companion object {
         @Volatile
@@ -338,7 +341,7 @@ abstract class FitTrackDatabase : RoomDatabase() {
 
         const val DB_NAME = "fittrack_database"
         /** Must match the @Database version above; checked by DatabaseBackup. */
-        const val DB_VERSION = 11
+        const val DB_VERSION = 12
 
         /** Application context for the one-time catalog import in onCreate. */
         @Volatile private var seedContext: Context? = null
@@ -431,6 +434,24 @@ abstract class FitTrackDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Tier-2 features: tracking modes (timed / distance sets) and progress
+         * photos. Additive columns and one new table; existing sets keep
+         * reps/weight and read as WEIGHT_REPS with no duration or distance.
+         */
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE exercises ADD COLUMN trackingMode TEXT NOT NULL DEFAULT 'WEIGHT_REPS'")
+                db.execSQL("ALTER TABLE workout_sets ADD COLUMN durationSeconds INTEGER")
+                db.execSQL("ALTER TABLE workout_sets ADD COLUMN distanceMeters REAL")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `progress_photos` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`takenAt` INTEGER NOT NULL, `fileName` TEXT NOT NULL, `pose` TEXT NOT NULL DEFAULT 'FRONT', `notes` TEXT)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_progress_photos_takenAt` ON `progress_photos` (`takenAt`)")
+            }
+        }
+
         fun getInstance(context: Context): FitTrackDatabase {
             seedContext = context.applicationContext
             return INSTANCE ?: synchronized(this) {
@@ -443,7 +464,7 @@ abstract class FitTrackDatabase : RoomDatabase() {
                     FitTrackDatabase::class.java,
                     DB_NAME
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
                     // No destructive fallback: a schema bump without a registered
                     // migration must crash in development, never wipe a user's
                     // history in production.
@@ -465,6 +486,8 @@ abstract class FitTrackDatabase : RoomDatabase() {
                         // catalog version; fresh installs do this in onCreate.
                         CatalogImporter.importIfNeeded(appContext, instance.exerciseDao())
                     }
+                    // Tag timed / carry / cardio catalog rows once (Tier 2).
+                    TrackingModeRetag.runOnce(appContext, instance.exerciseDao())
                 }
                 instance
             }

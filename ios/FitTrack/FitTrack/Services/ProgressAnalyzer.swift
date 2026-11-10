@@ -16,6 +16,11 @@ enum ProgressAnalyzer {
     static func generateSuggestions(context: ModelContext) -> [Suggestion] {
         var out: [Suggestion] = []
         analyzeMuscleGroupFrequency(context: context, into: &out)
+        // Volume / effort based deload advice (max 2 cards).
+        let workouts = VolumeGuidance.completedWorkouts(in: context)
+        for advice in DeloadAdvisor.evaluate(workouts: workouts).prefix(2) {
+            out.append(.deload(advice))
+        }
         return out.sorted { $0.priority < $1.priority }
     }
 

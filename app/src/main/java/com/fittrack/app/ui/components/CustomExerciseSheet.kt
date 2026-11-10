@@ -36,6 +36,7 @@ import com.fittrack.app.billing.FreeLimits
 import com.fittrack.app.data.entity.Equipment
 import com.fittrack.app.data.entity.Exercise
 import com.fittrack.app.data.entity.MuscleGroup
+import com.fittrack.app.data.entity.TrackingMode
 
 /**
  * Create / edit form for a user-defined exercise.
@@ -117,6 +118,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.FormBody(
     var primary by remember { mutableStateOf(initial?.muscleGroup ?: MuscleGroup.CHEST) }
     var secondary by remember { mutableStateOf(initial?.secondaryMuscleGroup) }
     var equipment by remember { mutableStateOf(initial?.equipment ?: Equipment.DUMBBELL) }
+    var tracking by remember { mutableStateOf(initial?.trackingMode ?: TrackingMode.WEIGHT_REPS) }
     val canSave = name.trim().length >= 2
 
     Text(
@@ -151,6 +153,14 @@ private fun androidx.compose.foundation.layout.ColumnScope.FormBody(
         }
     }
 
+    Spacer(modifier = Modifier.height(12.dp))
+    Overline("Tracks", modifier = Modifier.padding(horizontal = 0.dp))
+    PillChipRow(horizontalPadding = 0.dp) {
+        TrackingMode.entries.forEach { m ->
+            PillChip(label = m.displayName, selected = tracking == m, onClick = { tracking = m })
+        }
+    }
+
     Spacer(modifier = Modifier.height(20.dp))
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -176,6 +186,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.FormBody(
                         muscleGroup = primary,
                         secondaryMuscleGroup = secondary?.takeIf { it != primary },
                         equipment = equipment,
+                        trackingMode = tracking,
                         isCustom = true,
                     )
                 )

@@ -41,7 +41,7 @@ struct RoutineDetailView: View {
                             Spacer()
                             VStack(alignment: .trailing) {
                                 Text("\(re.suggestedSets) sets").font(.subheadline).foregroundColor(.accentColor)
-                                Text("\(re.suggestedReps) reps").font(.caption)
+                                Text(targetLabel(re)).font(.caption)
                             }
                         }
                         HStack(spacing: 8) {
@@ -70,6 +70,14 @@ struct RoutineDetailView: View {
                 Label("Start", systemImage: "play.fill")
             }
         }
+    }
+
+    /// "8-12 reps" for lifts, "30-60 sec" for holds, bare value for distance work.
+    private func targetLabel(_ re: RoutineExercise) -> String {
+        let mode = re.exercise?.trackingMode ?? .weightReps
+        if mode.usesReps { return "\(re.suggestedReps) reps" }
+        if mode.usesDuration { return "\(re.suggestedReps) sec" }
+        return re.suggestedReps
     }
 
     /// Writes straight through to the routine so the next workout picks it up.

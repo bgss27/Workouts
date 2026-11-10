@@ -19,6 +19,7 @@ struct CustomExerciseSheet: View {
     @State private var muscleGroup: MuscleGroup = .chest
     @State private var secondary: MuscleGroup?
     @State private var equipment: Equipment = .barbell
+    @State private var trackingMode: TrackingMode = .weightReps
     @State private var duplicateName = false
     @State private var notes = ""
 
@@ -67,6 +68,13 @@ struct CustomExerciseSheet: View {
                     }
                 }
                 Section {
+                    Picker("Tracks", selection: $trackingMode) {
+                        ForEach(TrackingMode.allCases) { Text($0.displayName).tag($0) }
+                    }
+                } footer: {
+                    Text(trackingMode.example)
+                }
+                Section {
                     TextField("e.g. seat 4, grip at the rings", text: $notes, axis: .vertical)
                         .lineLimit(2...6)
                 } header: {
@@ -92,6 +100,7 @@ struct CustomExerciseSheet: View {
                 muscleGroup = existing.muscleGroup
                 secondary = existing.secondaryMuscleGroup
                 equipment = existing.equipment
+                trackingMode = existing.trackingMode
                 notes = existing.notes ?? ""
             }
         }
@@ -111,6 +120,7 @@ struct CustomExerciseSheet: View {
             existing.muscleGroup = muscleGroup
             existing.secondaryMuscleGroup = secondary
             existing.equipment = equipment
+            existing.trackingMode = trackingMode
             existing.notes = trimmedNotes
             onSave(existing)
         } else {
@@ -122,6 +132,7 @@ struct CustomExerciseSheet: View {
                 equipment: equipment
             )
             exercise.notes = trimmedNotes
+            exercise.trackingMode = trackingMode
             modelContext.insert(exercise)
             onSave(exercise)
         }

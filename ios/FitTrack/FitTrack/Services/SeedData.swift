@@ -198,6 +198,46 @@ struct SeedData {
             }
         }
         if changed { try? context.save() }
+        retagTrackingModesIfNeeded(context: context, byName: byName)
+    }
+
+    /// Built-in exercises that are timed or distance-based. Exact names, shared
+    /// with Android's retag list; everything else stays weight & reps.
+    static let trackingModeByName: [String: TrackingMode] = {
+        var map: [String: TrackingMode] = [:]
+        for name in ["Plank", "Side Plank", "Hollow Hold", "Wall Sit", "Dead Hang", "Superman Hold",
+                     "Wall Handstand Hold", "Side Biceps Hold", "L-Sit", "Handstand Hold"] {
+            map[name] = .duration
+        }
+        for name in ["Farmer's Walk", "Rickshaw Carry", "Suitcase Carry", "Sled Push",
+                     "Sled Drag - Harness", "Prowler Sprint", "Sled Overhead Backward Walk"] {
+            map[name] = .weightDistance
+        }
+        for name in ["Bicycling", "Bicycling, Stationary", "Elliptical Trainer", "Jogging, Treadmill",
+                     "Recumbent Bike", "Rowing, Stationary", "Running, Treadmill", "Skating", "Stairmaster",
+                     "Step Mill", "Trail Running/Walking", "Walking, Treadmill",
+                     "Running", "Rowing", "Cycling", "Swimming"] {
+            map[name] = .distanceDuration
+        }
+        return map
+    }()
+
+    private static let trackingRetagKey = "tracking_retag_v1"
+
+    /// One-shot: tag the known timed/distance exercises. Custom rows and rows
+    /// the user already changed (non-nil raw) are left alone.
+    static func retagTrackingModesIfNeeded(context: ModelContext, byName: [String: [Exercise]]) {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: trackingRetagKey) else { return }
+        var changed = false
+        for (name, mode) in trackingModeByName {
+            for row in byName[name] ?? [] where !row.isCustom && row.trackingModeRaw == nil {
+                row.trackingMode = mode
+                changed = true
+            }
+        }
+        if changed { try? context.save() }
+        defaults.set(true, forKey: trackingRetagKey)
     }
 
     static func seedRoutines(context: ModelContext, exercises: [String: Exercise]) {

@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.fittrack.app.data.entity.Exercise
 import com.fittrack.app.data.entity.MuscleGroup
+import com.fittrack.app.data.entity.TrackingMode
+import com.fittrack.app.data.DistanceUnits
+import com.fittrack.app.data.DurationFormat
 import com.fittrack.app.data.repository.ExerciseRepository
 import com.fittrack.app.data.repository.WorkoutRepository
 import kotlinx.coroutines.flow.*
@@ -29,7 +32,24 @@ data class PastSetEntry(
     val weight: String = "",
     val reps: String = "",
     val isWarmup: Boolean = false,
-)
+    val duration: String = "",
+    val distance: String = "",
+) {
+    /** Loggable for [mode]: every field the mode uses is > 0. */
+    fun isValidFor(mode: TrackingMode): Boolean {
+        val w = weight.toDoubleOrNull() ?: 0.0
+        val r = reps.toIntOrNull() ?: 0
+        val d = DurationFormat.parse(duration) ?: 0
+        val dist = distance.toDoubleOrNull() ?: 0.0
+        return when (mode) {
+            TrackingMode.WEIGHT_REPS -> r > 0 && w > 0
+            TrackingMode.DURATION -> d > 0
+            TrackingMode.WEIGHT_DURATION -> w > 0 && d > 0
+            TrackingMode.DISTANCE_DURATION -> dist > 0 && d > 0
+            TrackingMode.WEIGHT_DISTANCE -> w > 0 && dist > 0
+        }
+    }
+}
 
 data class LogPastUiState(
     val date: LocalDate = LocalDate.now(),
@@ -114,9 +134,7 @@ class LogPastWorkoutViewModel(
      */
     val canSave: StateFlow<Boolean> = ui.map { state ->
         state.entries.isNotEmpty() && state.entries.all { e ->
-            e.sets.any { s ->
-                (s.reps.toIntOrNull() ?: 0) > 0 && (s.weight.toDoubleOrNull() ?: 0.0) > 0
-            }
+            e.sets.any { s -> s.isValidFor(e.exercise.trackingMode) }
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, false)
 
@@ -152,11 +170,13 @@ class LogPastWorkoutViewModel(
                     exerciseId = entry.exercise.id,
                     orderIndex = exerciseIndex,
                 )
+                val mode = entry.exercise.trackingMode
+                val distUnit = DistanceUnits.label(mode, if (weightUnitIsLbs) "lbs" else "kg")
                 var setNumber = 0
                 for (set in entry.sets) {
-                    val reps = set.reps.toIntOrNull() ?: continue
-                    val typed = set.weight.toDoubleOrNull() ?: continue
-                    if (reps <= 0 || typed <= 0) continue
+                    if (!set.isValidFor(mode)) continue
+                    val reps = if (mode.usesReps) set.reps.toIntOrNull() ?: 0 else 0
+                    val typed = if (mode.usesWeight) set.weight.toDoubleOrNull() ?: 0.0 else 0.0
                     if (!set.isWarmup) setNumber++
                     val weightKg = if (weightUnitIsLbs) typed * 0.45359237 else typed
                     workoutRepository.addSet(
@@ -165,6 +185,8 @@ class LogPastWorkoutViewModel(
                         reps = reps,
                         weightKg = weightKg,
                         isWarmup = set.isWarmup,
+                        durationSeconds = if (mode.usesDuration) DurationFormat.parse(set.duration) else null,
+                        distanceMeters = if (mode.usesDistance) set.distance.toDoubleOrNull()?.let { DistanceUnits.toMeters(it, distUnit) } else null,
                     )
                 }
             }

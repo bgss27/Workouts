@@ -143,6 +143,22 @@ extension ExercisesView {
                 Button { noteTarget = exercise } label: {
                     Label(exercise.notes == nil ? "Add note" : "Edit note", systemImage: "note.text")
                 }
+                Menu {
+                    ForEach(TrackingMode.allCases) { mode in
+                        Button {
+                            exercise.trackingMode = mode
+                            try? modelContext.save()
+                        } label: {
+                            if exercise.trackingMode == mode {
+                                Label(mode.displayName, systemImage: "checkmark")
+                            } else {
+                                Text(mode.displayName)
+                            }
+                        }
+                    }
+                } label: {
+                    Label("Tracking: \(exercise.trackingMode.displayName)", systemImage: exercise.trackingMode.symbol ?? "scalemass")
+                }
                 if exercise.isCustom {
                     Button { editingCustom = exercise } label: { Label("Edit", systemImage: "pencil") }
                     Button(role: .destructive) { deleteCustom(exercise) } label: { Label("Delete", systemImage: "trash") }
@@ -183,6 +199,11 @@ struct ExerciseRow: View {
                             Text(exercise.muscleGroup.displayName)
                                 .font(.caption)
                                 .foregroundColor(.accentColor)
+                            if let symbol = exercise.trackingMode.symbol {
+                                Label(exercise.trackingMode.displayName, systemImage: symbol)
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.fitOnSurfaceVariant)
+                            }
                             if exercise.isCustom {
                                 Text("CUSTOM")
                                     .font(.caption2.weight(.heavy))

@@ -119,6 +119,7 @@ fun ActiveWorkoutScreen(
     LaunchedEffect(Unit) { WorkoutPrefs.load(context) }
     val defaultRest by WorkoutPrefs.defaultRestSeconds.collectAsState()
     val restAlerts by WorkoutPrefs.restAlertsEnabled.collectAsState()
+    val progressionTargets by WorkoutPrefs.progressionTargets.collectAsState()
     var notifPermissionTick by remember { mutableIntStateOf(0) }
     val notifPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -216,7 +217,8 @@ fun ActiveWorkoutScreen(
     val totalSets = uiState.exercises.sumOf { ex -> ex.sets.count { !it.isWarmup } }
     val completedSets = uiState.exercises.sumOf { ex -> ex.sets.count { !it.isWarmup && it.isCompleted } }
     val totalVolume = uiState.exercises.sumOf { ex ->
-        ex.sets.filter { !it.isWarmup && it.isCompleted }.sumOf { s ->
+        if (ex.trackingMode != com.fittrack.app.data.entity.TrackingMode.WEIGHT_REPS) 0.0
+        else ex.sets.filter { !it.isWarmup && it.isCompleted }.sumOf { s ->
             (s.weight.toDoubleOrNull() ?: 0.0) * (s.reps.toIntOrNull() ?: 0)
         }
     }
@@ -482,12 +484,12 @@ fun ActiveWorkoutScreen(
                         notes = exerciseState.exercise.notes,
                         onNotesChange = { viewModel.updateExerciseNotes(index, it) },
                         previousHints = exerciseState.previousSets.map { prev ->
-                            val shown = WeightUnits.fromKg(prev.weightKg, uiState.weightUnit)
-                            val w = if (shown == shown.toLong().toDouble()) shown.toLong().toString()
-                            else "%.1f".format(shown).trimEnd('0').trimEnd('.')
-                            "$w × ${prev.reps}"
+                            prev.hint(exerciseState.trackingMode, uiState.weightUnit)
                         },
                         onFillPrevious = { setIndex -> viewModel.fillPreviousSet(index, setIndex) },
+                        trackingMode = exerciseState.trackingMode,
+                        progression = if (progressionTargets) exerciseState.progression else null,
+                        onApplyProgression = { viewModel.applyProgression(index) },
                     )
                 }
                 item { Spacer(modifier = Modifier.height(96.dp)) }

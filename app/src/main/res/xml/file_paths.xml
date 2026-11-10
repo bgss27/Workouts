@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Share-card PNGs are written to cache/share/ and handed to other apps via FileProvider. -->
+<!-- Share-card PNGs are written to cache/share/ and handed to other apps via FileProvider.
+     cache/camera/ holds the temporary capture the camera app writes for a progress photo;
+     files/progress_photos/ is the private photo store (never shared, listed for completeness). -->
 <paths>
     <cache-path name="share" path="share/" />
+    <cache-path name="camera" path="camera/" />
+    <files-path name="progress_photos" path="progress_photos/" />
 </paths>

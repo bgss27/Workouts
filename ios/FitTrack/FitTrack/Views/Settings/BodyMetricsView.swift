@@ -15,12 +15,32 @@ struct BodyMetricsView: View {
     @State private var editing: BodyMetric?
     @State private var showAdd = false
 
+    private enum Tab: String, CaseIterable, Identifiable {
+        case measurements = "Measurements", photos = "Photos"
+        var id: String { rawValue }
+    }
+    @State private var tab: Tab = .measurements
+
     private var isLbs: Bool { weightUnit == "lbs" }
 
     var body: some View {
         Group {
             if proManager.isPro {
-                content
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Picker("Section", selection: $tab) {
+                            ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal, Fit.gutter)
+                        if tab == .measurements {
+                            content
+                        } else {
+                            ProgressPhotosView()
+                        }
+                    }
+                    .padding(.vertical, 12)
+                }
             } else {
                 paywall
             }
@@ -29,7 +49,7 @@ struct BodyMetricsView: View {
         .navigationTitle("Body Metrics")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if proManager.isPro {
+            if proManager.isPro && tab == .measurements {
                 ToolbarItem(placement: .primaryAction) {
                     Button { showAdd = true } label: { Image(systemName: "plus") }
                         .accessibilityLabel("Add check-in")
@@ -45,7 +65,6 @@ struct BodyMetricsView: View {
     }
 
     private var content: some View {
-        ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -99,8 +118,6 @@ struct BodyMetricsView: View {
                     .padding(.horizontal, Fit.gutter)
                 }
             }
-            .padding(.vertical, 12)
-        }
     }
 
     private var chartTile: some View {

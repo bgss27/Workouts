@@ -34,8 +34,14 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Timer
+import com.fittrack.app.data.DistanceUnits
+import com.fittrack.app.data.DurationFormat
 import com.fittrack.app.data.WorkoutPrefs
 import com.fittrack.app.data.entity.SetType
+import com.fittrack.app.data.entity.TrackingMode
+import com.fittrack.app.domain.analysis.ProgressionAdvisor
+import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.Flag
 
 data class SetData(
     val id: Long = 0,
@@ -50,8 +56,43 @@ data class SetData(
      * tap the leading button to manually toggle it back off and edit.
      */
     val isCompleted: Boolean = false,
+    /** Typed "1:30" / "90" for timed modes; empty otherwise. */
+    val duration: String = "",
+    /** Typed distance in the display unit for distance modes; empty otherwise. */
+    val distance: String = "",
 ) {
     val isWarmup: Boolean get() = setType == SetType.WARMUP
+
+    /** Parsed duration in seconds, or null when blank / malformed. */
+    val durationSeconds: Int? get() = DurationFormat.parse(duration)
+
+    /** True when the row is blank for every field [mode] uses. */
+    fun isBlankFor(mode: TrackingMode): Boolean =
+        (!mode.usesWeight || weight.isEmpty()) && (!mode.usesReps || reps.isEmpty()) &&
+            (!mode.usesDuration || duration.isEmpty()) && (!mode.usesDistance || distance.isEmpty())
+
+    /**
+     * Whether the row holds a loggable set for [mode]: every field the mode
+     * uses is > 0, except weight on weight × reps rows, which may be 0 for
+     * bodyweight work (it still has to parse).
+     */
+    fun isValidFor(mode: TrackingMode): Boolean {
+        val w = weight.toDoubleOrNull()
+        val r = reps.toIntOrNull() ?: 0
+        val d = durationSeconds ?: 0
+        val dist = distance.toDoubleOrNull() ?: 0.0
+        return when (mode) {
+            TrackingMode.WEIGHT_REPS -> r > 0 && w != null && w >= 0
+            TrackingMode.DURATION -> d > 0
+            TrackingMode.WEIGHT_DURATION -> (w ?: 0.0) > 0 && d > 0
+            TrackingMode.DISTANCE_DURATION -> dist > 0 && d > 0
+            TrackingMode.WEIGHT_DISTANCE -> (w ?: 0.0) > 0 && dist > 0
+        }
+    }
+
+    /** Auto-complete rule: like [isValidFor] but weight must be > 0 everywhere. */
+    fun canAutoCompleteFor(mode: TrackingMode): Boolean =
+        !isWarmup && isValidFor(mode) && (!mode.usesWeight || (weight.toDoubleOrNull() ?: 0.0) > 0)
 }
 
 @Composable
@@ -89,6 +130,11 @@ fun ExerciseCard(
     /** "60 × 8" hints from the last session, by set index. */
     previousHints: List<String> = emptyList(),
     onFillPrevious: ((Int) -> Unit)? = null,
+    /** Which fields each set records. */
+    trackingMode: TrackingMode = TrackingMode.WEIGHT_REPS,
+    /** Auto-progression target for today, when enabled and known. */
+    progression: ProgressionAdvisor.Suggestion? = null,
+    onApplyProgression: (() -> Unit)? = null,
 ) {
     var localExpanded by remember { mutableStateOf(true) }
     val isExpanded = expanded ?: localExpanded
@@ -146,6 +192,7 @@ fun ExerciseCard(
                     )
                     if (isFinished) DonePill()
                     if (inSuperset) SupersetBadge()
+                    if (trackingMode != TrackingMode.WEIGHT_REPS) TrackingModeGlyph(trackingMode)
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -202,6 +249,13 @@ fun ExerciseCard(
                     if (onNotesChange != null) {
                         ExerciseNotesLine(notes = notes, onSave = onNotesChange)
                     }
+                    if (progression != null) {
+                        ProgressionTargetChip(
+                            suggestion = progression,
+                            weightUnit = weightUnit,
+                            onApply = onApplyProgression,
+                        )
+                    }
 
                     // How-to text — shown for any exercise we have written
                     // instructions for. Especially useful for bodyweight
@@ -248,8 +302,12 @@ fun ExerciseCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         SetHeaderLabel("SET", modifier = Modifier.width(28.dp))
-                        SetHeaderLabel(weightUnit.uppercase(), modifier = Modifier.weight(1f))
-                        SetHeaderLabel("REPS", modifier = Modifier.weight(1f))
+                        if (trackingMode.usesWeight) SetHeaderLabel(weightUnit.uppercase(), modifier = Modifier.weight(1f))
+                        if (trackingMode.usesReps) SetHeaderLabel("REPS", modifier = Modifier.weight(1f))
+                        if (trackingMode.usesDuration) SetHeaderLabel("TIME", modifier = Modifier.weight(1f))
+                        if (trackingMode.usesDistance) {
+                            SetHeaderLabel(DistanceUnits.label(trackingMode, weightUnit).uppercase(), modifier = Modifier.weight(1f))
+                        }
                         // Matches the row's trailing cluster: check (28) +
                         // delete (28) with an 8dp gap.
                         Spacer(modifier = Modifier.width(64.dp))
@@ -266,6 +324,11 @@ fun ExerciseCard(
                             rpe = set.rpe,
                             isCompleted = set.isCompleted,
                             weightUnit = weightUnit,
+                            trackingMode = trackingMode,
+                            duration = set.duration,
+                            distance = set.distance,
+                            onDurationChange = { onUpdateSet(index, set.copy(duration = it)) },
+                            onDistanceChange = { onUpdateSet(index, set.copy(distance = it)) },
                             onRepsChange = { onUpdateSet(index, set.copy(reps = it)) },
                             onWeightChange = { onUpdateSet(index, set.copy(weight = it)) },
                             onSetTypeChange = { type ->
@@ -407,6 +470,65 @@ private fun ExerciseNotesLine(notes: String?, onSave: (String) -> Unit) {
             )
         }
     }
+}
+
+/** "Target 62.5 kg × 8 ↑" with the reason and an Apply action. */
+@Composable
+private fun ProgressionTargetChip(
+    suggestion: ProgressionAdvisor.Suggestion,
+    weightUnit: String,
+    onApply: (() -> Unit)?,
+) {
+    val c = com.fittrack.app.ui.theme.FitTrackTheme.colors
+    val tint = when (suggestion.kind) {
+        ProgressionAdvisor.Kind.INCREASE_WEIGHT -> c.success
+        ProgressionAdvisor.Kind.ADD_REPS -> MaterialTheme.colorScheme.primary
+        ProgressionAdvisor.Kind.HOLD -> MaterialTheme.colorScheme.onSurfaceVariant
+        ProgressionAdvisor.Kind.REDUCE_WEIGHT -> c.warning
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 6.dp)
+            .clip(MaterialTheme.shapes.small)
+            .background(tint.copy(alpha = 0.12f))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(Icons.Default.Flag, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = suggestion.label(weightUnit),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = tint,
+            )
+            Text(
+                text = suggestion.reason,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+        }
+        if (onApply != null) {
+            TextButton(onClick = onApply, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                Text("Apply", style = MaterialTheme.typography.labelLarge, color = tint)
+            }
+        }
+    }
+}
+
+/** Small glyph on the header for timed / distance exercises. */
+@Composable
+private fun TrackingModeGlyph(mode: TrackingMode) {
+    val icon = if (mode.usesDistance) Icons.Default.DirectionsRun else Icons.Default.Timer
+    Icon(
+        icon,
+        contentDescription = mode.displayName,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.size(14.dp),
+    )
 }
 
 @Composable

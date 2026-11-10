@@ -84,6 +84,58 @@ struct SetTypeBadge: View {
     }
 }
 
+/// "Target 62.5 kg × 8 ↑ · Hit 12 reps on every set" with an Apply button
+/// that fills the blank sets. Shown under the rest/note chips.
+struct ProgressionChip: View {
+    let target: ProgressionSuggestion
+    let weightUnit: String
+    let onApply: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: target.glyph)
+                .font(.caption.weight(.bold))
+                .frame(width: 22, height: 22)
+                .background(tint.opacity(0.18))
+                .foregroundStyle(tint)
+                .clipShape(Circle())
+            VStack(alignment: .leading, spacing: 1) {
+                Text(target.label(unit: weightUnit))
+                    .font(.caption.weight(.semibold))
+                    .monospacedDigit()
+                Text(target.reason)
+                    .font(.caption2)
+                    .foregroundStyle(Color.fitOnSurfaceVariant)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 4)
+            Button("Apply", action: onApply)
+                .font(.caption.weight(.semibold))
+                .buttonStyle(.plain)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(tint.opacity(0.18))
+                .foregroundStyle(tint)
+                .clipShape(Capsule())
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(Color.fitSurfaceHigh)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(target.label(unit: weightUnit)). \(target.reason)")
+    }
+
+    private var tint: Color {
+        switch target.kind {
+        case .increaseWeight: return .fitTrackSuccess
+        case .addReps: return .fitPrimary
+        case .hold: return .fitOnSurfaceVariant
+        case .reduceWeight: return .fitTrackWarning
+        }
+    }
+}
+
 /// Edit the per-exercise note that carries over between sessions
 /// ("seat 4, grip at rings").
 struct ExerciseNoteSheet: View {

@@ -28,7 +28,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.fittrack.app.data.DurationFormat
 import com.fittrack.app.data.entity.SetType
+import com.fittrack.app.data.entity.TrackingMode
 
 private val RPE_VALUES = listOf(6, 7, 8, 9, 10)
 
@@ -54,17 +56,23 @@ fun SetInputRow(
     /** "60 × 8" from the last session for this set index; shown while the row is empty. */
     previousHint: String? = null,
     onFillPrevious: (() -> Unit)? = null,
+    /** Which fields this exercise records; drives the visible inputs. */
+    trackingMode: TrackingMode = TrackingMode.WEIGHT_REPS,
+    duration: String = "",
+    distance: String = "",
+    onDurationChange: (String) -> Unit = {},
+    onDistanceChange: (String) -> Unit = {},
 ) {
     val haptic = LocalHapticFeedback.current
     val isWarmup = setType == SetType.WARMUP
 
-    // Auto-mark complete the first time a non-warmup set has both fields
-    // populated with valid positive numbers. Auto-mark incomplete if the
-    // user clears one of them. Manual toggling via the check circle still
-    // works on top of this.
-    val canBeComplete = !isWarmup &&
-        (reps.toIntOrNull() ?: 0) > 0 &&
-        (weight.toDoubleOrNull() ?: 0.0) > 0.0
+    // Auto-mark complete the first time a non-warmup set has every field the
+    // mode uses populated with valid positive numbers. Auto-mark incomplete
+    // if the user clears one of them. Manual toggling via the check circle
+    // still works on top of this.
+    val canBeComplete = SetData(
+        reps = reps, weight = weight, setType = setType, duration = duration, distance = distance,
+    ).canAutoCompleteFor(trackingMode)
     LaunchedEffect(canBeComplete, isWarmup) {
         if (canBeComplete && !isCompleted) {
             onCompletedToggle(true)
@@ -118,21 +126,46 @@ fun SetInputRow(
                 modifier = Modifier.width(28.dp),
             )
 
-            CompactNumberField(
-                value = weight,
-                onValueChange = { onWeightChange(it.filter { c -> c.isDigit() || c == '.' }) },
-                placeholder = weightUnit,
-                keyboardType = KeyboardType.Decimal,
-                modifier = Modifier.weight(1f),
-            )
+            if (trackingMode.usesWeight) {
+                CompactNumberField(
+                    value = weight,
+                    onValueChange = { onWeightChange(it.filter { c -> c.isDigit() || c == '.' }) },
+                    placeholder = weightUnit,
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.weight(1f),
+                )
+            }
 
-            CompactNumberField(
-                value = reps,
-                onValueChange = { onRepsChange(it.filter { c -> c.isDigit() }) },
-                placeholder = "reps",
-                keyboardType = KeyboardType.Number,
-                modifier = Modifier.weight(1f),
-            )
+            if (trackingMode.usesReps) {
+                CompactNumberField(
+                    value = reps,
+                    onValueChange = { onRepsChange(it.filter { c -> c.isDigit() }) },
+                    placeholder = "reps",
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            if (trackingMode.usesDuration) {
+                CompactNumberField(
+                    value = duration,
+                    onValueChange = { onDurationChange(DurationFormat.sanitize(it)) },
+                    placeholder = "m:ss",
+                    // Phone keypad has the colon; plain Number does not.
+                    keyboardType = KeyboardType.Phone,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            if (trackingMode.usesDistance) {
+                CompactNumberField(
+                    value = distance,
+                    onValueChange = { onDistanceChange(it.filter { c -> c.isDigit() || c == '.' }) },
+                    placeholder = com.fittrack.app.data.DistanceUnits.label(trackingMode, weightUnit),
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.weight(1f),
+                )
+            }
 
             // Completion toggle: outlined when incomplete, primary fill when
             // complete. Disabled for warmups (they can't be "completed").
@@ -153,7 +186,8 @@ fun SetInputRow(
         }
 
         // Last session's numbers, until the user types something.
-        if (previousHint != null && weight.isEmpty() && reps.isEmpty()) {
+        val blank = SetData(reps = reps, weight = weight, duration = duration, distance = distance).isBlankFor(trackingMode)
+        if (previousHint != null && blank) {
             Text(
                 text = "Prev $previousHint",
                 style = MaterialTheme.typography.labelSmall,

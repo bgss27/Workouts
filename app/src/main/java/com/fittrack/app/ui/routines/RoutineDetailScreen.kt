@@ -183,7 +183,11 @@ fun RoutineDetailScreen(
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    text = "${routineExercise.suggestedReps} reps",
+                                    text = when {
+                                        exercise == null || exercise.trackingMode.usesReps -> "${routineExercise.suggestedReps} reps"
+                                        exercise.trackingMode.usesDuration && !exercise.trackingMode.usesDistance -> "${routineExercise.suggestedReps} sec"
+                                        else -> routineExercise.suggestedReps
+                                    },
                                     style = MaterialTheme.typography.bodySmall
                                 )
                                 AssistChip(

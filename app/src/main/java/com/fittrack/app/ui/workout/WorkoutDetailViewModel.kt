@@ -3,6 +3,7 @@ package com.fittrack.app.ui.workout
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.fittrack.app.data.entity.TrackingMode
 import com.fittrack.app.data.entity.WorkoutSet
 import com.fittrack.app.data.relation.WorkoutWithExercises
 import com.fittrack.app.data.repository.ExerciseRepository
@@ -13,7 +14,8 @@ import kotlinx.coroutines.launch
 data class ExerciseDetail(
     val exerciseName: String,
     val muscleGroup: String,
-    val sets: List<WorkoutSet>
+    val sets: List<WorkoutSet>,
+    val trackingMode: TrackingMode = TrackingMode.WEIGHT_REPS,
 )
 
 class WorkoutDetailViewModel(
@@ -38,7 +40,8 @@ class WorkoutDetailViewModel(
                     ExerciseDetail(
                         exerciseName = exercise?.name ?: "Unknown",
                         muscleGroup = exercise?.muscleGroup?.displayName ?: "",
-                        sets = sets
+                        sets = sets,
+                        trackingMode = exercise?.trackingMode ?: TrackingMode.WEIGHT_REPS,
                     )
                 }
                 _exerciseDetails.value = details

@@ -18,6 +18,14 @@ final class Exercise {
     /// Free-form reminder that carries over between sessions ("seat 4, grip
     /// at rings"). Optional so existing stores migrate additively.
     var notes: String?
+    /// Raw `TrackingMode`; nil on rows from before tracking modes existed and
+    /// means weight & reps. Optional so existing stores migrate additively.
+    var trackingModeRaw: String?
+
+    var trackingMode: TrackingMode {
+        get { trackingModeRaw.flatMap { TrackingMode(rawValue: $0) } ?? .weightReps }
+        set { trackingModeRaw = newValue.rawValue }
+    }
 
     var muscleGroup: MuscleGroup {
         get { MuscleGroup(rawValue: muscleGroupRaw) ?? .chest }

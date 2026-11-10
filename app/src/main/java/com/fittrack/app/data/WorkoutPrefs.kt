@@ -13,6 +13,7 @@ object WorkoutPrefs {
     private const val PREFS = "fittrack_profile"
     const val KEY_REST_DEFAULT = "rest_default_seconds"
     const val KEY_REST_ALERTS = "rest_alerts_enabled"
+    const val KEY_PROGRESSION = "progression_targets_enabled"
     const val DEFAULT_REST_SECONDS = 90
 
     /** Choices offered everywhere a rest length is picked. */
@@ -24,6 +25,10 @@ object WorkoutPrefs {
     private val _restAlertsEnabled = MutableStateFlow(true)
     val restAlertsEnabled: StateFlow<Boolean> = _restAlertsEnabled
 
+    private val _progressionTargets = MutableStateFlow(true)
+    /** Show the "Target 62.5 kg × 8" chip in the active workout. */
+    val progressionTargets: StateFlow<Boolean> = _progressionTargets
+
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -31,6 +36,7 @@ object WorkoutPrefs {
         val p = prefs(context)
         _defaultRestSeconds.value = p.getInt(KEY_REST_DEFAULT, DEFAULT_REST_SECONDS)
         _restAlertsEnabled.value = p.getBoolean(KEY_REST_ALERTS, true)
+        _progressionTargets.value = p.getBoolean(KEY_PROGRESSION, true)
     }
 
     fun defaultRest(context: Context): Int {
@@ -46,6 +52,11 @@ object WorkoutPrefs {
     fun setDefaultRest(context: Context, seconds: Int) {
         prefs(context).edit().putInt(KEY_REST_DEFAULT, seconds).apply()
         _defaultRestSeconds.value = seconds
+    }
+
+    fun setProgressionTargets(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_PROGRESSION, enabled).apply()
+        _progressionTargets.value = enabled
     }
 
     fun setRestAlerts(context: Context, enabled: Boolean) {

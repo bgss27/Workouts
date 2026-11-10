@@ -1,5 +1,6 @@
 package com.fittrack.app.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -18,4 +19,7 @@ data class Exercise(
     val equipment: Equipment = Equipment.BARBELL,
     /** Personal setup cue ("seat 4, grip at rings"); shown every session. */
     val notes: String? = null,
+    /** Which fields a set records (weight × reps, a timed hold, a run…). */
+    @ColumnInfo(defaultValue = "WEIGHT_REPS")
+    val trackingMode: TrackingMode = TrackingMode.WEIGHT_REPS,
 )

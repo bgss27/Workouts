@@ -33,10 +33,12 @@ object WeightUnits {
      * Format a stored kg value as "100 kg" or "220.5 lbs" depending on
      * the user's preferred unit. Whole numbers drop trailing decimal.
      */
-    fun format(weightKg: Double, unit: String): String {
+    fun format(weightKg: Double, unit: String): String = "${formatNumber(weightKg, unit)} $unit"
+
+    /** The display value alone ("100", "220.5") for compact rows and hints. */
+    fun formatNumber(weightKg: Double, unit: String): String {
         val v = fromKg(weightKg, unit)
-        val s = if (v == v.toLong().toDouble()) v.toLong().toString()
-        else "%.1f".format(v)
-        return "$s $unit"
+        return if (v == v.toLong().toDouble()) v.toLong().toString()
+        else "%.1f".format(v).trimEnd('0').trimEnd('.')
     }
 }

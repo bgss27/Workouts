@@ -21,6 +21,7 @@ struct SettingsView: View {
     @AppStorage(ThemeMode.storageKey) private var themeModeRaw = ThemeMode.defaultMode.rawValue
     @AppStorage(RestTimerNotifier.defaultRestKey) private var defaultRestSeconds = 90
     @AppStorage(RestTimerNotifier.alertsEnabledKey) private var restAlertsEnabled = true
+    @AppStorage(ProgressionAdvisor.prefKey) private var progressionTargets = true
 
     let genders = ["Male", "Female", "Not specified"]
     let goals = ["Build Muscle", "Lose Weight", "Gain Strength", "Improve Endurance", "General Fitness"]
@@ -143,6 +144,9 @@ struct SettingsView: View {
                     }
                     Toggle("Rest timer alerts", isOn: $restAlertsEnabled)
                     Text("Alerts notify you when rest ends while the phone is locked. Rest length can also be set per exercise in a routine or during a workout.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Toggle("Progression targets", isOn: $progressionTargets)
+                    Text("Suggests the next weight and reps for each exercise from your last sessions, with one tap to fill the sets.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
@@ -329,7 +333,7 @@ private enum CsvExporter {
     /// platform has the same columns. The "Superset" column is always blank
     /// on iOS until supersets land here.
     private static let header =
-        "Date,Duration (min),Exercise,Muscle Group,Superset,Set,Warmup,Weight (kg),Reps,RPE,Notes,Set Type"
+        "Date,Duration (min),Exercise,Muscle Group,Superset,Set,Warmup,Weight (kg),Reps,RPE,Notes,Set Type,Duration (s),Distance (m)"
 
     static func generate(from workouts: [Workout]) -> String {
         let formatter = DateFormatter()
@@ -363,6 +367,8 @@ private enum CsvExporter {
                         set.rpe.map(String.init) ?? "",
                         notes,
                         set.setType.rawValue.uppercased(),
+                        set.durationSeconds.map(String.init) ?? "",
+                        set.distanceMeters.map { formatWeight($0) } ?? "",
                     ].joined(separator: ",")
                     rows.append(row)
                 }

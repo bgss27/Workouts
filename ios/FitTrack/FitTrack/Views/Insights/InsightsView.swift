@@ -7,11 +7,15 @@ struct InsightsView: View {
     @State private var allInsights: [MuscleInsightData] = []
     @State private var selectedInsight: MuscleInsightData?
     @State private var isLoading = true
+    @State private var volumeSummary = ""
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 12) {
+                    if !isLoading && selectedInsight == nil {
+                        volumeTile
+                    }
                     if isLoading {
                         ProgressView("Running ML analysis...")
                             .padding(32)
@@ -40,6 +44,25 @@ struct InsightsView: View {
             }
             .onAppear { loadInsights() }
         }
+    }
+
+    /// Entry point for the Weekly Volume screen.
+    private var volumeTile: some View {
+        NavigationLink { VolumeGuidanceView() } label: {
+            HStack(spacing: 12) {
+                IconBadge(systemName: "chart.bar.fill", tint: .fitSecondary, size: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Weekly volume").font(.subheadline.bold()).foregroundStyle(Color.primary)
+                    Text(volumeSummary).font(.caption).foregroundStyle(Color.fitOnSurfaceVariant)
+                }
+                Spacer()
+                SmallChevron()
+            }
+            .padding()
+            .background(Color.fitSurfaceLow)
+            .cornerRadius(12)
+        }
+        .buttonStyle(.plain)
     }
 
     private var emptyView: some View {
@@ -256,6 +279,7 @@ struct InsightsView: View {
     private func loadInsights() {
         let engine = MlAnalysisEngine(context: modelContext)
         allInsights = engine.analyzeAllMuscleGroups()
+        volumeSummary = VolumeGuidanceSummary.text(in: modelContext)
         isLoading = false
     }
 

@@ -49,7 +49,15 @@ final class WorkoutSet {
     /// the legacy flag in that case.
     var setTypeRaw: String = SetType.working.rawValue
     var rpe: Int?
+    /// Timed sets (plank, carries by time, cardio). nil when the exercise's
+    /// tracking mode has no duration.
+    var durationSeconds: Int?
+    /// Distance covered, in metres. nil when the mode has no distance.
+    var distanceMeters: Double?
     var workoutExercise: WorkoutExercise?
+
+    /// Volume and 1RM maths only make sense for weight × reps.
+    var isWeightReps: Bool { reps > 0 && durationSeconds == nil && distanceMeters == nil }
 
     var setType: SetType {
         get {
@@ -74,8 +82,18 @@ final class WorkoutSet {
         self.rpe = rpe
     }
 
-    convenience init(setNumber: Int, reps: Int, weightKg: Double, setType: SetType, rpe: Int? = nil) {
+    convenience init(
+        setNumber: Int,
+        reps: Int,
+        weightKg: Double,
+        setType: SetType,
+        rpe: Int? = nil,
+        durationSeconds: Int? = nil,
+        distanceMeters: Double? = nil
+    ) {
         self.init(setNumber: setNumber, reps: reps, weightKg: weightKg, isWarmup: setType == .warmup, rpe: rpe)
         self.setTypeRaw = setType.rawValue
+        self.durationSeconds = durationSeconds
+        self.distanceMeters = distanceMeters
     }
 }

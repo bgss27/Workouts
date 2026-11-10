@@ -53,7 +53,9 @@ class CsvExporter(
                         .append(set.reps).append(',')
                         .append(set.rpe?.toString().orEmpty()).append(',')
                         .append(workoutNotes).append(',')
-                        .append(set.setType.name)
+                        .append(set.setType.name).append(',')
+                        .append(set.durationSeconds?.toString().orEmpty()).append(',')
+                        .append(set.distanceMeters?.let { formatWeight(it) }.orEmpty())
                         .append('\n')
                 }
             }
@@ -64,7 +66,7 @@ class CsvExporter(
 
     companion object {
         private const val HEADER =
-            "Date,Duration (min),Exercise,Muscle Group,Superset,Set,Warmup,Weight (kg),Reps,RPE,Notes,Set Type"
+            "Date,Duration (min),Exercise,Muscle Group,Superset,Set,Warmup,Weight (kg),Reps,RPE,Notes,Set Type,Duration (s),Distance (m)"
     }
 }
 

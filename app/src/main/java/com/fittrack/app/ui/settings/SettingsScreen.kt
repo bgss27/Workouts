@@ -62,6 +62,7 @@ fun SettingsScreen(
     LaunchedEffect(Unit) { WorkoutPrefs.load(context) }
     val defaultRest by WorkoutPrefs.defaultRestSeconds.collectAsState()
     val restAlerts by WorkoutPrefs.restAlertsEnabled.collectAsState()
+    val progressionTargets by WorkoutPrefs.progressionTargets.collectAsState()
 
     val healthConnect = appModule.healthConnectService
     val hcEnabled by healthConnect.enabled.collectAsState()
@@ -280,6 +281,19 @@ fun SettingsScreen(
                             Switch(
                                 checked = restAlerts,
                                 onCheckedChange = { WorkoutPrefs.setRestAlerts(context, it) },
+                            )
+                        },
+                    )
+                    RowDivider()
+                    ListRow(
+                        title = "Progression targets",
+                        subtitle = "Suggest today's weight and reps from your last sessions",
+                        icon = Icons.Default.Flag,
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        trailing = {
+                            Switch(
+                                checked = progressionTargets,
+                                onCheckedChange = { WorkoutPrefs.setProgressionTargets(context, it) },
                             )
                         },
                     )

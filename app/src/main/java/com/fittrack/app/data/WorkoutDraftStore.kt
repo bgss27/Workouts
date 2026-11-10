@@ -24,6 +24,9 @@ class WorkoutDraftStore(context: Context) {
         val isCompleted: Boolean,
         /** [com.fittrack.app.data.entity.SetType] name; WORKING when absent. */
         val setType: String = if (isWarmup) "WARMUP" else "WORKING",
+        /** Typed duration / distance text for timed and distance modes. */
+        val duration: String = "",
+        val distance: String = "",
     )
 
     data class DraftExercise(
@@ -65,6 +68,8 @@ class WorkoutDraftStore(context: Context) {
                                             .put("rpe", s.rpe ?: JSONObject.NULL)
                                             .put("isCompleted", s.isCompleted)
                                             .put("setType", s.setType)
+                                            .put("duration", s.duration)
+                                            .put("distance", s.distance)
                                     )
                                 }
                             })
@@ -100,6 +105,8 @@ class WorkoutDraftStore(context: Context) {
                                         "setType",
                                         if (s.optBoolean("isWarmup", false)) "WARMUP" else "WORKING",
                                     ),
+                                    duration = s.optString("duration", ""),
+                                    distance = s.optString("distance", ""),
                                 )
                             }
                         },

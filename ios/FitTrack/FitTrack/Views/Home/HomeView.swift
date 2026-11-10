@@ -909,6 +909,8 @@ private enum ProgressMath {
     static func dataPoints(for exercise: Exercise, across workouts: [Workout]) -> [ProgressDataPoint] {
         let target = exercise.persistentModelID
         var points: [ProgressDataPoint] = []
+        // Timed / distance exercises have no 1RM or tonnage curve.
+        guard exercise.trackingMode == .weightReps else { return points }
         for workout in workouts {
             guard workout.endTime != nil else { continue }
             let matchingExercises = workout.exercises.filter {

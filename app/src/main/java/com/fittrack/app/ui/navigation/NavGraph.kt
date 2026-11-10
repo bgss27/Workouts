@@ -16,6 +16,7 @@ import com.fittrack.app.ui.workout.LogPastWorkoutScreen
 import com.fittrack.app.ui.home.HomeScreen
 import com.fittrack.app.ui.exercises.ExercisesScreen
 import com.fittrack.app.ui.insights.MuscleInsightScreen
+import com.fittrack.app.ui.insights.VolumeGuidanceScreen
 import com.fittrack.app.ui.myplan.MyPlanScreen
 import com.fittrack.app.ui.paywall.UpgradeScreen
 import com.fittrack.app.ui.settings.SettingsScreen
@@ -200,6 +201,14 @@ fun NavGraph(
                 appModule = appModule,
                 isPro = isPro,
                 onUpgrade = { navController.navigate(Screen.Upgrade.route) },
+                onViewVolume = { navController.navigate(Screen.VolumeGuidance.route) },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.VolumeGuidance.route) {
+            VolumeGuidanceScreen(
+                appModule = appModule,
                 onBack = { navController.popBackStack() }
             )
         }

@@ -20,6 +20,10 @@
          system module, so the package query alone isn't enough — the
          intent-based query covers both provider variants. -->
     <queries>
+        <!-- Progress photos: hand off to the system camera app (no CAMERA permission needed). -->
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
         <package android:name="com.google.android.apps.healthdata" />
         <intent>
             <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />

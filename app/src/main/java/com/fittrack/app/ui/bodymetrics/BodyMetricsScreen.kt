@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -72,12 +73,29 @@ fun BodyMetricsScreen(
     // null = sheet closed; BodyMetric(id = 0) = new entry; otherwise editing.
     var editing by remember { mutableStateOf<BodyMetric?>(null) }
     var pendingDelete by remember { mutableStateOf<BodyMetric?>(null) }
+    // 0 = Measurements, 1 = Photos
+    var tab by rememberSaveable { mutableIntStateOf(0) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = { DetailHeader(title = "Body Metrics", onBack = onBack) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            Column {
+                DetailHeader(title = "Body Metrics", onBack = onBack)
+                if (isPro) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = ScreenGutter, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        PillChip(label = "Measurements", selected = tab == 0, onClick = { tab = 0 })
+                        PillChip(label = "Photos", selected = tab == 1, onClick = { tab = 1 })
+                    }
+                }
+            }
+        },
         bottomBar = {
-            if (isPro && metrics.isNotEmpty()) {
+            if (isPro && tab == 0 && metrics.isNotEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -100,6 +118,16 @@ fun BodyMetricsScreen(
                     .fillMaxSize()
                     .padding(padding),
                 onUpgrade = onUpgrade,
+            )
+            return@Scaffold
+        }
+        if (tab == 1) {
+            ProgressPhotosContent(
+                repository = appModule.progressPhotoRepository,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                snackbarHostState = snackbarHostState,
             )
             return@Scaffold
         }

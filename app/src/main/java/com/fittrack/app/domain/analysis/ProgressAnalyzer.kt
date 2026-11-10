@@ -2,6 +2,7 @@ package com.fittrack.app.domain.analysis
 
 import com.fittrack.app.data.entity.Exercise
 import com.fittrack.app.data.entity.MuscleGroup
+import com.fittrack.app.data.entity.TrackingMode
 import com.fittrack.app.data.entity.WorkoutSet
 import com.fittrack.app.data.db.dao.ExerciseSetRow
 import com.fittrack.app.data.repository.ExerciseRepository
@@ -19,6 +20,7 @@ class ProgressAnalyzer(
     private val exerciseRepository: ExerciseRepository,
     private val userPlanRepository: UserPlanRepository,
     private val routineRepository: RoutineRepository,
+    private val volumeAnalyzer: VolumeAnalyzer? = null,
 ) {
     companion object {
         private const val PLATEAU_THRESHOLD = 0.01 // 1% improvement threshold
@@ -75,12 +77,20 @@ class ProgressAnalyzer(
             val exercises = exerciseRepository.getAllExercises().first().associateBy { it.id }
             for ((exerciseId, rows) in setsByExercise) {
                 val exercise = exercises[exerciseId] ?: continue
+                if (exercise.trackingMode != TrackingMode.WEIGHT_REPS) continue
                 analyzeIfEnoughSessions(exercise, rows, suggestions)
             }
         }
 
         // Analyze muscle group frequency
         analyzeMuscleGroupFrequency(suggestions)
+
+        // Weekly-volume / fatigue deload advice (Tier 2), at most two cards.
+        volumeAnalyzer?.let { analyzer ->
+            runCatching { analyzer.deloadAdvice() }.getOrDefault(emptyList())
+                .take(2)
+                .forEach { suggestions.add(Suggestion.DeloadWeek(it)) }
+        }
 
         return suggestions.sortedBy { it.priority }
     }
@@ -91,6 +101,7 @@ class ProgressAnalyzer(
         val setsByExercise = workoutRepository.getWorkingSetsByExercise()
 
         for (exercise in exercises) {
+            if (exercise.trackingMode != TrackingMode.WEIGHT_REPS) continue
             val rows = setsByExercise[exercise.id] ?: continue
             analyzeIfEnoughSessions(exercise, rows, suggestions)
         }
@@ -298,6 +309,8 @@ class ProgressAnalyzer(
 
         for (we in workoutWithExercises.exercises) {
             val exercise = exerciseRepository.getById(we.exerciseId) ?: continue
+            // 1RM maths only make sense for weight × reps exercises.
+            if (exercise.trackingMode != TrackingMode.WEIGHT_REPS) continue
             // workoutExerciseIds for this exercise within the current workout —
             // used to exclude this workout's contributions when computing "previous best".
             val currentWeIds = workoutWithExercises.exercises

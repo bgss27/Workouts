@@ -18,6 +18,9 @@ struct WorkoutDraft: Codable {
         var isCompleted: Bool
         /// `SetType` raw value; nil in drafts written before set types existed.
         var setType: String?
+        /// Timed / distance fields as typed; nil in older drafts.
+        var duration: String?
+        var distance: String?
 
         var resolvedType: SetType {
             SetType(rawValue: setType ?? "") ?? (isWarmup ? .warmup : .working)
@@ -34,6 +37,8 @@ struct WorkoutDraft: Codable {
         var sets: [Set]
         /// Session-only rest override for this exercise.
         var restSeconds: Int?
+        /// Routine rep prescription, for the progression advisor on resume.
+        var targetReps: String?
     }
 
     var workoutID: PersistentIdentifier

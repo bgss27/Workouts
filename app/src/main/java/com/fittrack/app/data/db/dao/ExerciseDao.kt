@@ -59,6 +59,13 @@ interface ExerciseDao {
     @Query("UPDATE exercises SET notes = :notes WHERE id = :id")
     suspend fun updateNotes(id: Long, notes: String?)
 
+    @Query("UPDATE exercises SET trackingMode = :mode WHERE id = :id")
+    suspend fun updateTrackingMode(id: Long, mode: String)
+
+    /** Built-in rows only; [mode] is a [com.fittrack.app.data.entity.TrackingMode] name. */
+    @Query("UPDATE exercises SET trackingMode = :mode WHERE isCustom = 0 AND name IN (:names)")
+    suspend fun retagTrackingMode(names: List<String>, mode: String)
+
     @Delete
     suspend fun delete(exercise: Exercise)
 

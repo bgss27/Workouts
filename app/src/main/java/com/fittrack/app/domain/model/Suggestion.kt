@@ -1,6 +1,7 @@
 package com.fittrack.app.domain.model
 
 import com.fittrack.app.data.entity.MuscleGroup
+import com.fittrack.app.domain.analysis.DeloadAdvice
 
 sealed class Suggestion {
     abstract val title: String
@@ -63,6 +64,13 @@ sealed class Suggestion {
         override val title = "Consider a Deload: $exerciseName"
         override val description = "Your progress has stalled and effort is very high. Try reducing weight by ${suggestedWeightReduction.toInt()}% for a week, then build back up."
         override val priority = 4
+    }
+
+    /** Weekly-volume / fatigue based deload advice for a muscle group or the whole plan. */
+    data class DeloadWeek(val advice: DeloadAdvice) : Suggestion() {
+        override val title = advice.title
+        override val description = "${advice.reason}. ${advice.action}"
+        override val priority = 2
     }
 
     data class TryExercise(

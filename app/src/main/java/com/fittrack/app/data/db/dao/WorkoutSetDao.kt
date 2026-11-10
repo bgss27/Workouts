@@ -110,16 +110,31 @@ interface WorkoutSetDao {
     """)
     fun getAllSetsForExercise(exerciseId: Long): Flow<List<WorkoutSet>>
 
-    /** Working sets of every completed workout, with exercise id and workout date. */
+    /**
+     * Working sets of every completed workout, with exercise id and workout
+     * date — weight × reps exercises only, since this feeds 1RM maths.
+     */
     @Query("""
         SELECT ws.*, we.exerciseId AS exerciseId, w.startTime AS workoutStartTime
         FROM workout_sets ws
         INNER JOIN workout_exercises we ON ws.workoutExerciseId = we.id
         INNER JOIN workouts w ON we.workoutId = w.id
-        WHERE ws.isWarmup = 0 AND w.endTime IS NOT NULL
+        INNER JOIN exercises e ON e.id = we.exerciseId
+        WHERE ws.isWarmup = 0 AND w.endTime IS NOT NULL AND e.trackingMode = 'WEIGHT_REPS'
         ORDER BY w.startTime ASC, ws.setNumber ASC
     """)
     suspend fun getAllWorkingSetRows(): List<ExerciseSetRow>
+
+    /** Every non-warm-up set of every completed workout since [sinceMs], all tracking modes. */
+    @Query("""
+        SELECT ws.*, we.exerciseId AS exerciseId, w.startTime AS workoutStartTime
+        FROM workout_sets ws
+        INNER JOIN workout_exercises we ON ws.workoutExerciseId = we.id
+        INNER JOIN workouts w ON we.workoutId = w.id
+        WHERE ws.isWarmup = 0 AND w.endTime IS NOT NULL AND w.startTime >= :sinceMs
+        ORDER BY w.startTime ASC, ws.setNumber ASC
+    """)
+    suspend fun getNonWarmupSetRowsSince(sinceMs: Long): List<ExerciseSetRow>
 
     /** Same shape for one exercise, all time. */
     @Query("""

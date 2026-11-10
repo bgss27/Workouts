@@ -6,11 +6,13 @@ import com.fittrack.app.data.export.CsvExporter
 import com.fittrack.app.data.health.HealthConnectService
 import com.fittrack.app.data.repository.BodyMetricRepository
 import com.fittrack.app.data.repository.ExerciseRepository
+import com.fittrack.app.data.repository.ProgressPhotoRepository
 import com.fittrack.app.data.repository.RoutineRepository
 import com.fittrack.app.data.repository.UserPlanRepository
 import com.fittrack.app.data.repository.WorkoutRepository
 import com.fittrack.app.domain.analysis.ProgressAnalyzer
 import com.fittrack.app.domain.analysis.RoutineSuggestionEngine
+import com.fittrack.app.domain.analysis.VolumeAnalyzer
 import com.fittrack.app.domain.ml.MlAnalysisEngine
 
 class AppModule(context: Context) {
@@ -21,12 +23,15 @@ class AppModule(context: Context) {
     val routineRepository = RoutineRepository(database.routineDao())
     val userPlanRepository = UserPlanRepository(database.userPlanDao(), database.routineDao())
     val bodyMetricRepository = BodyMetricRepository(database.bodyMetricDao())
+    val progressPhotoRepository = ProgressPhotoRepository(context, database.progressPhotoDao())
 
+    val volumeAnalyzer = VolumeAnalyzer(workoutRepository, exerciseRepository)
     val progressAnalyzer = ProgressAnalyzer(
         workoutRepository,
         exerciseRepository,
         userPlanRepository,
         routineRepository,
+        volumeAnalyzer,
     )
     val routineSuggestionEngine = RoutineSuggestionEngine(exerciseRepository, routineRepository)
     val mlAnalysisEngine = MlAnalysisEngine(workoutRepository, exerciseRepository)

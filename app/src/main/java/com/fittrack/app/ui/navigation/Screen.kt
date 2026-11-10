@@ -57,6 +57,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     }
     data object MlInsights : Screen("ml_insights", "Insights", Icons.Default.Psychology)
     data object BodyMetrics : Screen("body_metrics", "Body Metrics", Icons.Default.MonitorWeight)
+    data object VolumeGuidance : Screen("volume_guidance", "Weekly Volume")
     data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
     data object Upgrade : Screen("upgrade", "Upgrade")
 

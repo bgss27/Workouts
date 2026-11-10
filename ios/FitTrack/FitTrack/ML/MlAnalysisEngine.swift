@@ -86,7 +86,8 @@ class MlAnalysisEngine {
     private func fetchExercises(for group: MuscleGroup) -> [Exercise] {
         let raw = group.rawValue
         let descriptor = FetchDescriptor<Exercise>(predicate: #Predicate { $0.muscleGroupRaw == raw })
-        return (try? context.fetch(descriptor)) ?? []
+        // Timed / distance exercises have no 1RM; keep them out of the strength maths.
+        return ((try? context.fetch(descriptor)) ?? []).filter { $0.trackingMode == .weightReps }
     }
 
     private func fetchSets(for exercise: Exercise) -> [WorkoutSet] {

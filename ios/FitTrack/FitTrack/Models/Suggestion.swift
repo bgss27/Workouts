@@ -35,6 +35,20 @@ struct Suggestion: Identifiable, Equatable {
 
     // MARK: - Builders mirroring Android's data classes
 
+    static func deload(_ advice: DeloadAdvice) -> Suggestion {
+        var group: MuscleGroup?
+        if case .muscleGroup(let g) = advice.scope { group = g }
+        return Suggestion(
+            kind: .deload,
+            title: advice.title,
+            description: "\(advice.reason). \(advice.action)",
+            priority: 2,
+            muscleGroup: group,
+            sessionsLast4Weeks: 0,
+            suggestedFreqPerWeek: 0
+        )
+    }
+
     static func increaseFrequency(muscleGroup: MuscleGroup, sessionsLast4Weeks: Int, suggestedFreqPerWeek: Int) -> Suggestion {
         let group = muscleGroup.displayName
         let title = "Train \(group) More Often"

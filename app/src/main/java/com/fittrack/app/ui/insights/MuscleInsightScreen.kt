@@ -16,6 +16,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.ui.components.DetailHeader
 import com.fittrack.app.domain.ml.*
+import com.fittrack.app.domain.analysis.WeeklyVolumeReport
+import androidx.compose.foundation.clickable
 import com.fittrack.app.ui.components.EmptyState
 import com.fittrack.app.ui.components.MuscleGroupChipRow
 import com.fittrack.app.ui.theme.*
@@ -26,11 +28,13 @@ fun MuscleInsightScreen(
     appModule: AppModule,
     isPro: Boolean,
     onUpgrade: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onViewVolume: () -> Unit = {},
 ) {
     val viewModel: MuscleInsightViewModel = viewModel(
-        factory = MuscleInsightViewModel.Factory(appModule.mlAnalysisEngine)
+        factory = MuscleInsightViewModel.Factory(appModule.mlAnalysisEngine, appModule.volumeAnalyzer)
     )
+    val volume by viewModel.volume.collectAsState()
 
     val allInsights by viewModel.allInsights.collectAsState()
     val selectedInsight by viewModel.selectedInsight.collectAsState()
@@ -48,6 +52,11 @@ fun MuscleInsightScreen(
                 .padding(padding),
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
+            // Weekly hard-set volume against the 10–20 band (free, all users).
+            item {
+                WeeklyVolumeTile(report = volume, onClick = onViewVolume)
+            }
+
             // Filter chips: only Pro users can drill into arbitrary muscle groups.
             // Free preview is fixed to the first muscle group in `allInsights`.
             if (isPro) {
@@ -151,6 +160,41 @@ fun MuscleInsightScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun WeeklyVolumeTile(report: WeeklyVolumeReport?, onClick: () -> Unit) {
+    val c = FitTrackTheme.colors
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(Icons.Default.BarChart, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Weekly volume", style = MaterialTheme.typography.titleSmall)
+                val trained = report?.rows?.filter { it.sets > 0 } ?: emptyList()
+                val subtitle = when {
+                    report == null -> "Counting this week's sets…"
+                    trained.isEmpty() -> "No sets logged this week yet"
+                    else -> "${report.groupsInRange} of ${trained.size} trained groups in range" +
+                        (if (report.advice.isNotEmpty()) " · deload advised" else "")
+                }
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (report?.advice?.isNotEmpty() == true) c.warning else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

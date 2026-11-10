@@ -36,6 +36,7 @@ fun SuggestionCard(
         is Suggestion.IncreaseVolume -> Icons.Default.Add to c.warning
         is Suggestion.IncreaseFrequency -> Icons.Default.Repeat to Blue40
         is Suggestion.Deload -> Icons.Default.TrendingDown to c.danger
+        is Suggestion.DeloadWeek -> Icons.Default.TrendingDown to c.warning
         is Suggestion.TryExercise -> Icons.Default.FitnessCenter to Teal40
         is Suggestion.MuscleGroupSummary -> when (suggestion.trend) {
             "improving" -> Icons.Default.TrendingUp to c.success

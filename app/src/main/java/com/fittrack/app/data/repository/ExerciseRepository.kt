@@ -4,6 +4,7 @@ import com.fittrack.app.data.db.dao.ExerciseDao
 import com.fittrack.app.data.entity.Equipment
 import com.fittrack.app.data.entity.Exercise
 import com.fittrack.app.data.entity.MuscleGroup
+import com.fittrack.app.data.entity.TrackingMode
 import kotlinx.coroutines.flow.Flow
 
 class ExerciseRepository(private val exerciseDao: ExerciseDao) {
@@ -21,6 +22,9 @@ class ExerciseRepository(private val exerciseDao: ExerciseDao) {
 
     suspend fun updateNotes(id: Long, notes: String?) =
         exerciseDao.updateNotes(id, notes?.trim()?.takeIf { it.isNotEmpty() })
+
+    suspend fun updateTrackingMode(id: Long, mode: TrackingMode) =
+        exerciseDao.updateTrackingMode(id, mode.name)
 
     fun getCustomCount(): Flow<Int> = exerciseDao.getCustomCount()
 

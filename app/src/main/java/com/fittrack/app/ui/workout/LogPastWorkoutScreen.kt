@@ -268,22 +268,47 @@ private fun PastExerciseCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = if (set.isWarmup) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface,
                     )
-                    OutlinedTextField(
-                        value = set.weight,
-                        onValueChange = { v -> onUpdateSet(set.id) { it.copy(weight = v) } },
-                        placeholder = { Text(weightUnit) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                    OutlinedTextField(
-                        value = set.reps,
-                        onValueChange = { v -> onUpdateSet(set.id) { it.copy(reps = v) } },
-                        placeholder = { Text("Reps") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
+                    val mode = entry.exercise.trackingMode
+                    if (mode.usesWeight) {
+                        OutlinedTextField(
+                            value = set.weight,
+                            onValueChange = { v -> onUpdateSet(set.id) { it.copy(weight = v) } },
+                            placeholder = { Text(weightUnit) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    if (mode.usesReps) {
+                        OutlinedTextField(
+                            value = set.reps,
+                            onValueChange = { v -> onUpdateSet(set.id) { it.copy(reps = v) } },
+                            placeholder = { Text("Reps") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    if (mode.usesDuration) {
+                        OutlinedTextField(
+                            value = set.duration,
+                            onValueChange = { v -> onUpdateSet(set.id) { it.copy(duration = com.fittrack.app.data.DurationFormat.sanitize(v)) } },
+                            placeholder = { Text("m:ss") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    if (mode.usesDistance) {
+                        OutlinedTextField(
+                            value = set.distance,
+                            onValueChange = { v -> onUpdateSet(set.id) { it.copy(distance = v.filter { c -> c.isDigit() || c == '.' }) } },
+                            placeholder = { Text(com.fittrack.app.data.DistanceUnits.label(mode, weightUnit)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                     TextButton(onClick = { onUpdateSet(set.id) { it.copy(isWarmup = !it.isWarmup) } }) {
                         Text(
                             "W",

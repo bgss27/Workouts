@@ -12,6 +12,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fittrack.app.data.WeightUnits
+import com.fittrack.app.data.SetFormat
+import com.fittrack.app.data.entity.TrackingMode
 import com.fittrack.app.ui.components.DetailHeader
 import androidx.compose.material.icons.filled.Share
 import com.fittrack.app.data.relation.WorkoutWithExercises
@@ -111,14 +113,19 @@ fun WorkoutDetailScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
 
+                        val mode = detail.trackingMode
                         // Header
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text("Set", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
-                            Text("Weight ($unit)", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
-                            Text("Reps", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
+                            if (mode == TrackingMode.WEIGHT_REPS) {
+                                Text("Weight ($unit)", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
+                                Text("Reps", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
+                            } else {
+                                Text(mode.displayName, style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(2f))
+                            }
                         }
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
@@ -136,21 +143,29 @@ fun WorkoutDetailScreen(
                                     color = if (set.isWarmup) MaterialTheme.colorScheme.tertiary
                                     else MaterialTheme.colorScheme.onSurface
                                 )
-                                Text(
-                                    text = WeightUnits.format(set.weightKg, unit),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Text(
-                                    text = "${set.reps}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.weight(1f)
-                                )
+                                if (mode == TrackingMode.WEIGHT_REPS) {
+                                    Text(
+                                        text = WeightUnits.format(set.weightKg, unit),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(
+                                        text = "${set.reps}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                } else {
+                                    Text(
+                                        text = SetFormat.describe(mode, set.weightKg, set.reps, set.durationSeconds, set.distanceMeters, unit),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.weight(2f)
+                                    )
+                                }
                             }
                         }
 
                         // Volume summary — convert the kg-based total once.
-                        val workingSets = detail.sets.filter { !it.isWarmup }
+                        val workingSets = if (mode == TrackingMode.WEIGHT_REPS) detail.sets.filter { !it.isWarmup } else emptyList()
                         if (workingSets.isNotEmpty()) {
                             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                             val totalVolumeKg = workingSets.sumOf { it.weightKg * it.reps }

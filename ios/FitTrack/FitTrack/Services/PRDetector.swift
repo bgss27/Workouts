@@ -26,7 +26,8 @@ enum PRDetector {
         // Best 1RM per exercise in the finished workout.
         var bestThisWorkout: [PersistentIdentifier: (name: String, best: Double)] = [:]
         for we in workout.exercises {
-            guard let exercise = we.exercise else { continue }
+            // 1RM is only meaningful for weight × reps work.
+            guard let exercise = we.exercise, exercise.trackingMode == .weightReps else { continue }
             for set in we.sets where set.countsForPR && set.reps > 0 && set.weightKg > 0 {
                 let oneRm = set.weightKg * (1.0 + Double(set.reps) / 30.0)
                 let existing = bestThisWorkout[exercise.persistentModelID]?.best ?? 0

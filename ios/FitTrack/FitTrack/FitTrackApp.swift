@@ -21,15 +21,16 @@ struct FitTrackApp: App {
             Routine.self,
             RoutineExercise.self,
             UserPlan.self,
-            BodyMetric.self
+            BodyMetric.self,
+            ProgressPhoto.self
         ])
         // Copy the store aside before a schema change touches it; see StoreBackup.
         StoreBackup.backupIfSchemaChanged(modelNames: [
             "Exercise", "Workout", "WorkoutExercise", "WorkoutSet",
-            "Routine", "RoutineExercise", "UserPlan", "BodyMetric",
+            "Routine", "RoutineExercise", "UserPlan", "BodyMetric", "ProgressPhoto",
             // Bumped whenever attributes are added so the backup fires even
             // though the model list is unchanged.
-            "schema:v2",
+            "schema:v3",
         ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {

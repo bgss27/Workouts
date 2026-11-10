@@ -23,6 +23,7 @@ import com.fittrack.app.billing.ProManager
 import com.fittrack.app.data.entity.Exercise
 import com.fittrack.app.ui.components.CustomExerciseSheet
 import com.fittrack.app.data.entity.MuscleGroup
+import com.fittrack.app.data.entity.TrackingMode
 import com.fittrack.app.di.AppModule
 import com.fittrack.app.domain.model.ExerciseGuideData
 import com.fittrack.app.data.repository.ExerciseImageRepository
@@ -142,13 +143,21 @@ fun ExercisesScreen(
                         MuscleGroupHeader(group, groupExercises.size)
                     }
                     items(groupExercises.sortedBy { it.name }) { exercise ->
-                        ExerciseDetailCard(exercise, onEdit = { editing = exercise })
+                        ExerciseDetailCard(
+                            exercise,
+                            onEdit = { editing = exercise },
+                            onTrackingChange = { viewModel.setTrackingMode(exercise, it) },
+                        )
                     }
                 }
             } else {
                 // Flat filtered list
                 items(exercises.sortedBy { it.name }) { exercise ->
-                    ExerciseDetailCard(exercise, onEdit = { editing = exercise })
+                    ExerciseDetailCard(
+                        exercise,
+                        onEdit = { editing = exercise },
+                        onTrackingChange = { viewModel.setTrackingMode(exercise, it) },
+                    )
                 }
             }
         }
@@ -203,8 +212,14 @@ private fun MuscleGroupHeader(group: MuscleGroup, count: Int) {
 }
 
 @Composable
-private fun ExerciseDetailCard(exercise: Exercise, onEdit: () -> Unit) {
+private fun ExerciseDetailCard(
+    exercise: Exercise,
+    onEdit: () -> Unit,
+    onTrackingChange: (TrackingMode) -> Unit = {},
+) {
     var expanded by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
+    var trackingMenuOpen by remember { mutableStateOf(false) }
     val chevronRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
         label = "chevronRotation"
@@ -252,6 +267,43 @@ private fun ExerciseDetailCard(exercise: Exercise, onEdit: () -> Unit) {
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp)
                     )
+                }
+            }
+            // Overflow: "Tracking: …" submenu to change how sets are logged.
+            Box {
+                IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = "More",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Tracking: ${exercise.trackingMode.displayName}") },
+                        leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null) },
+                        trailingIcon = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
+                        onClick = { menuOpen = false; trackingMenuOpen = true },
+                    )
+                }
+                DropdownMenu(expanded = trackingMenuOpen, onDismissRequest = { trackingMenuOpen = false }) {
+                    TrackingMode.entries.forEach { mode ->
+                        DropdownMenuItem(
+                            text = { Text(mode.displayName) },
+                            leadingIcon = {
+                                if (mode == exercise.trackingMode) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                } else {
+                                    Spacer(Modifier.size(24.dp))
+                                }
+                            },
+                            onClick = {
+                                trackingMenuOpen = false
+                                if (mode != exercise.trackingMode) onTrackingChange(mode)
+                            },
+                        )
+                    }
                 }
             }
             Icon(
@@ -323,6 +375,12 @@ private fun ExerciseDetailCard(exercise: Exercise, onEdit: () -> Unit) {
                     Icon(Icons.Default.Info, contentDescription = null, tint = muted, modifier = Modifier.size(12.dp))
                     Text("Type:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     Text(if (exercise.secondaryMuscleGroup != null) "Compound" else "Isolation", style = MaterialTheme.typography.bodyMedium)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Tune, contentDescription = null, tint = muted, modifier = Modifier.size(12.dp))
+                    Text("Tracks:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    Text(exercise.trackingMode.displayName, style = MaterialTheme.typography.bodyMedium)
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))

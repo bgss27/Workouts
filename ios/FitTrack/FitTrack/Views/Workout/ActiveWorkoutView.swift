@@ -56,7 +56,13 @@ struct ActiveWorkoutView: View {
         var restSeconds: Int? = nil
         /// Last session's working sets, for the "Prev 60 × 8" ghost hints.
         var previousSets: [PreviousSet] = []
+        /// Routine rep prescription ("8-12") used by the progression advisor.
+        var targetReps: String? = nil
+        /// Next-session target from the progression advisor; nil when there is
+        /// no history or the exercise isn't weight × reps.
+        var progression: ProgressionSuggestion? = nil
 
+        var mode: TrackingMode { exercise.trackingMode }
         var workingSets: [SetEntry] { sets.filter { $0.setType.countsAsWorking } }
         var completedWorkingSets: Int { workingSets.filter(\.isCompleted).count }
     }
@@ -65,6 +71,10 @@ struct ActiveWorkoutView: View {
         let id = UUID()
         var weight: String = ""
         var reps: String = ""
+        /// Typed as "m:ss" or seconds; only used by timed modes.
+        var duration: String = ""
+        /// Typed in the display distance unit; only used by distance modes.
+        var distance: String = ""
         var setType: SetType = .working
         var isWarmup: Bool { setType == .warmup }
         /// RPE 6-10. nil = unrated. Warmup sets are conventionally not rated.
@@ -73,6 +83,34 @@ struct ActiveWorkoutView: View {
         /// weight + reps are both valid for a non-warmup set, but the user can
         /// tap the leading button to manually toggle it back off and edit.
         var isCompleted: Bool = false
+
+        /// Every field the mode uses is still blank (ghost hint shows).
+        func isBlank(for mode: TrackingMode) -> Bool {
+            (!mode.usesWeight || weight.isEmpty) && (!mode.usesReps || reps.isEmpty)
+                && (!mode.usesDuration || duration.isEmpty) && (!mode.usesDistance || distance.isEmpty)
+        }
+
+        /// Saveable: every field the mode uses parses to a positive value
+        /// (weight may be 0 for weight × reps, i.e. bodyweight).
+        func isValid(for mode: TrackingMode) -> Bool {
+            switch mode {
+            case .weightReps:
+                return (Int(reps) ?? 0) > 0 && Double(weight) != nil
+            default:
+                if mode.usesWeight && (Double(weight) ?? 0) <= 0 { return false }
+                if mode.usesDuration && (DurationFormat.parse(duration) ?? 0) <= 0 { return false }
+                if mode.usesDistance && (Double(distance) ?? 0) <= 0 { return false }
+                return true
+            }
+        }
+
+        /// Auto-complete needs a real load for weight × reps; other modes
+        /// complete as soon as they're valid.
+        func canAutoComplete(for mode: TrackingMode) -> Bool {
+            guard !isWarmup else { return false }
+            if mode == .weightReps { return (Int(reps) ?? 0) > 0 && (Double(weight) ?? 0) > 0 }
+            return isValid(for: mode)
+        }
     }
 
     private let guidance = TimeOfDayAdvisor.getGuidance()
@@ -86,6 +124,8 @@ struct ActiveWorkoutView: View {
 
     /// Global default rest from Settings; a per-exercise value wins.
     @AppStorage(RestTimerNotifier.defaultRestKey) private var defaultRestSeconds = 90
+    /// Settings → Workout → Progression targets.
+    @AppStorage(ProgressionAdvisor.prefKey) private var progressionTargets = true
     /// Exercise the running rest timer belongs to, for the lock-screen alert.
     @State private var restExerciseName: String?
     /// When non-nil, the note sheet is open for this exercise entry.
@@ -238,6 +278,7 @@ struct ActiveWorkoutView: View {
                                 SetRowView(
                                     set: $set,
                                     index: entry.sets.firstIndex(where: { $0.id == set.id }) ?? 0,
+                                    mode: entry.mode,
                                     previousSets: entry.previousSets,
                                     weightUnit: weightUnit,
                                     onCompleted: { autoStartRestTimer(for: entry) }
@@ -294,6 +335,12 @@ struct ActiveWorkoutView: View {
                                         HStack(spacing: 6) {
                                             Text(entry.exercise.muscleGroup.displayName)
                                                 .font(.caption).opacity(0.6)
+                                            if let symbol = entry.mode.symbol {
+                                                Image(systemName: symbol)
+                                                    .font(.caption2)
+                                                    .foregroundStyle(Color.fitOnSurfaceVariant)
+                                                    .accessibilityLabel(entry.mode.displayName)
+                                            }
                                             if !entry.workingSets.isEmpty {
                                                 Text("\(entry.completedWorkingSets)/\(entry.workingSets.count) sets")
                                                     .font(.caption).opacity(0.6)
@@ -482,11 +529,7 @@ struct ActiveWorkoutView: View {
                 }
                 ForEach(filtered, id: \.self) { exercise in
                     Button {
-                        let newEntry = ExerciseEntry(
-                            exercise: exercise,
-                            sets: [SetEntry()],
-                            previousSets: LastSessionLookup.previousSets(for: exercise, in: modelContext)
-                        )
+                        let newEntry = makeEntry(exercise: exercise, sets: [SetEntry()])
                         exerciseEntries.append(newEntry)
                         // Auto-open the just-added exercise so the user can
                         // start logging immediately.
@@ -523,26 +566,85 @@ struct ActiveWorkoutView: View {
     /// doesn't have to swallow the whole List in one expression.
     private func exerciseControls(_ entry: Binding<ExerciseEntry>) -> some View {
         let notes = entry.wrappedValue.exercise.notes
-        return HStack(spacing: 10) {
-            RestDurationPicker(seconds: entry.restSeconds, defaultSeconds: effectiveDefaultRest)
-            Button { noteTarget = NoteTarget(id: entry.wrappedValue.id) } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "note.text").font(.caption2.weight(.semibold))
-                    Text(notes ?? "Add note")
-                        .font(.caption.weight(notes == nil ? .regular : .semibold))
-                        .lineLimit(1)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                RestDurationPicker(seconds: entry.restSeconds, defaultSeconds: effectiveDefaultRest)
+                Button { noteTarget = NoteTarget(id: entry.wrappedValue.id) } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "note.text").font(.caption2.weight(.semibold))
+                        Text(notes ?? "Add note")
+                            .font(.caption.weight(notes == nil ? .regular : .semibold))
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(notes == nil ? Color.fitOnSurfaceVariant : Color.primary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Color.fitSurfaceHigh)
+                    .clipShape(Capsule())
                 }
-                .foregroundStyle(notes == nil ? Color.fitOnSurfaceVariant : Color.primary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Color.fitSurfaceHigh)
-                .clipShape(Capsule())
+                .buttonStyle(.plain)
+                .accessibilityLabel("Exercise note")
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Exercise note")
-            Spacer(minLength: 0)
+            if progressionTargets, let target = entry.wrappedValue.progression {
+                ProgressionChip(target: target, weightUnit: weightUnit) {
+                    applyTarget(target, to: entry)
+                }
+            }
         }
         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 4, trailing: 16))
+    }
+
+    /// Fill every blank, non-warm-up set with the advisor's weight and reps.
+    private func applyTarget(_ target: ProgressionSuggestion, to entry: Binding<ExerciseEntry>) {
+        var sets = entry.wrappedValue.sets
+        var filled = 0
+        for i in sets.indices where !sets[i].isWarmup && sets[i].weight.isEmpty && sets[i].reps.isEmpty {
+            if target.weightKg > 0 {
+                sets[i].weight = SetFormat.weightText(target.weightKg, unit: weightUnit)
+            }
+            sets[i].reps = String(target.reps)
+            filled += 1
+        }
+        if filled > 0 {
+            entry.wrappedValue.sets = sets
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+    }
+
+    /// Build an entry with its ghost values and progression target.
+    private func makeEntry(
+        exercise: Exercise,
+        sets: [SetEntry],
+        supersetGroup: Int? = nil,
+        isFinished: Bool = false,
+        restSeconds: Int? = nil,
+        targetReps: String? = nil
+    ) -> ExerciseEntry {
+        var entry = ExerciseEntry(
+            exercise: exercise,
+            sets: sets,
+            supersetGroup: supersetGroup,
+            isFinished: isFinished,
+            restSeconds: restSeconds,
+            previousSets: LastSessionLookup.previousSets(for: exercise, in: modelContext),
+            targetReps: targetReps
+        )
+        if exercise.trackingMode == .weightReps {
+            let history = LastSessionLookup.recentSessions(for: exercise, in: modelContext).map { session in
+                SessionSets(sets: session.map {
+                    SessionSets.Set(weightKg: $0.weightKg, reps: $0.reps, rpe: $0.rpe, setType: $0.setType)
+                })
+            }
+            entry.progression = ProgressionAdvisor.suggest(
+                history: history,
+                repTarget: ProgressionAdvisor.repTarget(from: targetReps),
+                muscleGroup: exercise.muscleGroup,
+                equipment: exercise.equipment,
+                weightUnit: weightUnit
+            )
+        }
+        return entry
     }
 
     // MARK: - Lifecycle
@@ -560,15 +662,16 @@ struct ActiveWorkoutView: View {
                 let resolved = (modelContext.model(for: de.exerciseID) as? Exercise)
                     ?? allExercises.first { $0.name == de.exerciseName }
                 guard let exercise = resolved else { continue }
-                restored.append(ExerciseEntry(
+                restored.append(makeEntry(
                     exercise: exercise,
                     sets: de.sets.map {
-                        SetEntry(weight: $0.weight, reps: $0.reps, setType: $0.resolvedType, rpe: $0.rpe, isCompleted: $0.isCompleted)
+                        SetEntry(weight: $0.weight, reps: $0.reps, duration: $0.duration ?? "", distance: $0.distance ?? "",
+                                 setType: $0.resolvedType, rpe: $0.rpe, isCompleted: $0.isCompleted)
                     },
                     supersetGroup: de.supersetGroup,
                     isFinished: de.isFinished,
                     restSeconds: de.restSeconds,
-                    previousSets: LastSessionLookup.previousSets(for: exercise, in: modelContext)
+                    targetReps: de.targetReps
                 ))
             }
             exerciseEntries = restored
@@ -596,21 +699,17 @@ struct ActiveWorkoutView: View {
                 // Pre-fill the routine's prescribed number of sets so the user
                 // isn't tapping Add set between every one.
                 let rows = max(1, min(re.suggestedSets, 8))
-                exerciseEntries.append(ExerciseEntry(
+                exerciseEntries.append(makeEntry(
                     exercise: ex,
                     sets: (0..<rows).map { _ in SetEntry() },
                     restSeconds: re.restSeconds,
-                    previousSets: LastSessionLookup.previousSets(for: ex, in: modelContext)
+                    targetReps: re.suggestedReps
                 ))
             }
         } else if !initialExercises.isEmpty {
             // Ad-hoc workout pre-loaded by the Home Workout generator.
             for ex in initialExercises {
-                exerciseEntries.append(ExerciseEntry(
-                    exercise: ex,
-                    sets: [SetEntry()],
-                    previousSets: LastSessionLookup.previousSets(for: ex, in: modelContext)
-                ))
+                exerciseEntries.append(makeEntry(exercise: ex, sets: [SetEntry()]))
             }
         }
         // Open the first exercise's accordion by default.
@@ -633,10 +732,12 @@ struct ActiveWorkoutView: View {
                     sets: e.sets.map {
                         WorkoutDraft.Set(
                             weight: $0.weight, reps: $0.reps, isWarmup: $0.isWarmup,
-                            rpe: $0.rpe, isCompleted: $0.isCompleted, setType: $0.setType.rawValue
+                            rpe: $0.rpe, isCompleted: $0.isCompleted, setType: $0.setType.rawValue,
+                            duration: $0.duration, distance: $0.distance
                         )
                     },
-                    restSeconds: e.restSeconds
+                    restSeconds: e.restSeconds,
+                    targetReps: e.targetReps
                 )
             }
         )
@@ -665,7 +766,8 @@ struct ActiveWorkoutView: View {
         var volumeKg = 0.0
         var names: [String] = []
         for (i, entry) in exerciseEntries.enumerated() {
-            let validSets = entry.sets.filter { (Int($0.reps) ?? 0) > 0 && Double($0.weight) != nil }
+            let mode = entry.mode
+            let validSets = entry.sets.filter { $0.isValid(for: mode) }
             guard !validSets.isEmpty else { continue }
             let we = WorkoutExercise(
                 exercise: entry.exercise,
@@ -675,23 +777,27 @@ struct ActiveWorkoutView: View {
             we.workout = workout
             workout.exercises.append(we)
             names.append(entry.exercise.name)
+            let distanceUnit = DistanceUnits.unit(for: mode, weightUnit: weightUnit)
             var setNum = 0
             for set in validSets {
-                guard let reps = Int(set.reps), let typedWeight = Double(set.weight) else { continue }
                 if !set.isWarmup { setNum += 1 }
+                let reps = mode.usesReps ? (Int(set.reps) ?? 0) : 0
                 // Storage is always kg; convert if user typed in lbs.
+                let typedWeight = mode.usesWeight ? (Double(set.weight) ?? 0) : 0
                 let weightKg = isLbs ? typedWeight * 0.45359237 : typedWeight
                 let ws = WorkoutSet(
                     setNumber: set.isWarmup ? 0 : setNum,
                     reps: reps,
                     weightKg: weightKg,
                     setType: set.setType,
-                    rpe: set.isWarmup ? nil : set.rpe
+                    rpe: set.isWarmup ? nil : set.rpe,
+                    durationSeconds: mode.usesDuration ? DurationFormat.parse(set.duration) : nil,
+                    distanceMeters: mode.usesDistance ? Double(set.distance).map { DistanceUnits.toMeters($0, unit: distanceUnit) } : nil
                 )
                 ws.workoutExercise = we
                 we.sets.append(ws)
                 savedSets += 1
-                if !set.isWarmup { volumeKg += weightKg * Double(reps) }
+                if !set.isWarmup && mode == .weightReps { volumeKg += weightKg * Double(reps) }
             }
         }
 
@@ -745,13 +851,13 @@ struct ActiveWorkoutView: View {
     /// membership; resets sets (different movement = different working weight).
     private func swapExercise(at index: Int, with newExercise: Exercise) {
         guard exerciseEntries.indices.contains(index) else { return }
-        let supersetGroup = exerciseEntries[index].supersetGroup
-        exerciseEntries[index] = ExerciseEntry(
+        let old = exerciseEntries[index]
+        exerciseEntries[index] = makeEntry(
             exercise: newExercise,
             sets: [SetEntry()],
-            supersetGroup: supersetGroup,
-            restSeconds: exerciseEntries[index].restSeconds,
-            previousSets: LastSessionLookup.previousSets(for: newExercise, in: modelContext)
+            supersetGroup: old.supersetGroup,
+            restSeconds: old.restSeconds,
+            targetReps: old.targetReps
         )
         formExpanded.removeAll() // collapse any open form gallery for the old exercise
     }
@@ -804,21 +910,22 @@ struct ActiveWorkoutView: View {
 private struct SetRowView: View {
     @Binding var set: ActiveWorkoutView.SetEntry
     let index: Int
+    let mode: TrackingMode
     let previousSets: [PreviousSet]
     let weightUnit: String
     /// Fired when the set flips to completed; the parent starts the rest timer.
     let onCompleted: () -> Void
 
-    /// Auto-toggle "completed" the first time the user fills in valid weight
-    /// + reps for a non-warmup set. Never auto-toggles back off — the user
-    /// unticks manually via the completion button.
-    private var canAutoComplete: Bool {
-        !set.isWarmup && (Int(set.reps) ?? 0) > 0 && (Double(set.weight) ?? 0) > 0
-    }
+    /// Auto-toggle "completed" the first time the user fills in every field
+    /// the mode needs for a non-warmup set. Never auto-toggles back off — the
+    /// user unticks manually via the completion button.
+    private var canAutoComplete: Bool { self.set.canAutoComplete(for: mode) }
 
     private var previous: PreviousSet? {
         index < previousSets.count ? previousSets[index] : nil
     }
+
+    private var distanceUnit: DistanceUnits.Unit { DistanceUnits.unit(for: mode, weightUnit: weightUnit) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -831,15 +938,29 @@ private struct SetRowView: View {
                     set.isCompleted.toggle()
                 }
                 SetTypeBadge(number: index + 1, setType: $set.setType)
-                SetField(placeholder: weightUnit, text: $set.weight, keyboard: .decimalPad)
-                SetField(placeholder: "Reps", text: $set.reps, keyboard: .numberPad)
+                if mode.usesWeight {
+                    SetField(placeholder: weightUnit, text: $set.weight, keyboard: .decimalPad)
+                }
+                if mode.usesReps {
+                    SetField(placeholder: "Reps", text: $set.reps, keyboard: .numberPad)
+                }
+                if mode.usesDuration {
+                    SetField(placeholder: "m:ss", text: $set.duration, keyboard: .numbersAndPunctuation)
+                }
+                if mode.usesDistance {
+                    SetField(placeholder: distanceUnit.rawValue, text: $set.distance, keyboard: .decimalPad)
+                }
             }
             // Ghost of last session's matching set, until the user types.
-            if let prev = previous, set.weight.isEmpty, set.reps.isEmpty {
-                let hint = LastSessionLookup.hint(prev, unit: weightUnit)
+            if let prev = previous, set.isBlank(for: mode) {
+                let hint = LastSessionLookup.hint(prev, mode: mode, unit: weightUnit)
                 Button {
-                    set.weight = LastSessionLookup.weightText(prev.weightKg, unit: weightUnit)
-                    set.reps = String(prev.reps)
+                    if mode.usesWeight { set.weight = LastSessionLookup.weightText(prev.weightKg, unit: weightUnit) }
+                    if mode.usesReps { set.reps = String(prev.reps) }
+                    if mode.usesDuration, let d = prev.durationSeconds { set.duration = DurationFormat.format(d) }
+                    if mode.usesDistance, let m = prev.distanceMeters {
+                        set.distance = DistanceUnits.valueText(m, unit: distanceUnit)
+                    }
                 } label: {
                     Text(hint)
                         .font(.caption2.weight(.semibold))
